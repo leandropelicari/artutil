@@ -108,10 +108,10 @@ def main(page: ft.Page):
 
     def adicionar_item_mp(nome="", qtd="", valor=""):
         txt_qtd = criar_campo_numero("Qtd", valor=qtd)
-        txt_qtd.expand = True  # Garante divisão igual na linha
+        txt_qtd.expand = True
         
         txt_valor = criar_campo_numero("R$ Un.", valor=valor)
-        txt_valor.expand = True  # Garante divisão igual na linha
+        txt_valor.expand = True
         
         opcoes_dd = [ft.dropdown.Option(m) for m in lista_materiais_padrao]
         
@@ -426,8 +426,13 @@ def main(page: ft.Page):
             caminho_arquivo = f"assets/{nome_arquivo}"
             pdf.output(caminho_arquivo)
             
+            # Converte wss:// para https:// de forma segura para o navegador abrir o PDF
             def abrir_pdf(e):
                 base_url = page.url.rstrip("/")
+                if base_url.startswith("wss://"):
+                    base_url = base_url.replace("wss://", "https://")
+                elif base_url.startswith("ws://"):
+                    base_url = base_url.replace("ws://", "http://")
                 page.launch_url(f"{base_url}/{nome_arquivo}")
 
             card_resultado.content = ft.Column([
