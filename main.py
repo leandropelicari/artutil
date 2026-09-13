@@ -23,7 +23,7 @@ def main(page: ft.Page):
     COR_BORDA = "#D4C4B7"
     COR_TEXTO = "#44403C"
     
-    # --- FUNÇÕES DE INTERFACE SEGURAS ---
+    # --- FUNÇÕES DE INTERFACE SEGURAS (SEM EXPAND PARA EVITAR CORTE NA WEB) ---
     def criar_campo_texto(label, valor=""):
         return ft.TextField(
             label=label,
@@ -32,8 +32,7 @@ def main(page: ft.Page):
             border_color=COR_BORDA,
             focused_border_color=COR_PRETA,
             content_padding=15,
-            label_style=ft.TextStyle(color=COR_TEXTO),
-            expand=True
+            label_style=ft.TextStyle(color=COR_TEXTO)
         )
 
     def criar_campo_numero(label, prefixo="", sufixo="", valor=""):
@@ -48,8 +47,7 @@ def main(page: ft.Page):
             border_color=COR_BORDA,
             focused_border_color=COR_PRETA,
             content_padding=15,
-            label_style=ft.TextStyle(color=COR_TEXTO),
-            expand=True
+            label_style=ft.TextStyle(color=COR_TEXTO)
         )
 
     def extrair_numero(campo):
@@ -277,7 +275,6 @@ def main(page: ft.Page):
         texto_botao = e.control.content.controls[0]
         
         try:
-            # Salva na memória do navegador do usuário
             page.client_storage.set("padrao_art_util", dados_salvar)
             texto_botao.value = "✓ Padrão Salvo no Celular!"
             texto_botao.color = "#16A34A"
@@ -298,7 +295,6 @@ def main(page: ft.Page):
     aba_mo_fixos.controls.extend([ft.Container(height=10), criar_botao_salvar()])
 
     def carregar_padrao():
-        # Busca os dados salvos na memória do navegador do usuário
         dados = page.client_storage.get("padrao_art_util")
         
         if dados:
