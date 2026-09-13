@@ -423,15 +423,24 @@ def main(page: ft.Page):
             caminho_arquivo = f"assets/{nome_arquivo}"
             pdf.output(caminho_arquivo)
             
-            resultado_texto.value = "✓ PDF GERADO!\nO download iniciará automaticamente."
-            resultado_texto.color = "#16A34A"
-            card_resultado.content = resultado_texto
+            card_resultado.content = ft.Column([
+                ft.Text("✓ PDF GERADO COM SUCESSO!", weight="bold", size=16, color="#16A34A", text_align="center"),
+                ft.Text(f"Arquivo: {nome_arquivo}", size=13, color=COR_TEXTO, text_align="center"),
+                ft.Container(height=10),
+                ft.ElevatedButton(
+                    text="BAIXAR ARQUIVO PDF",
+                    icon=ft.icons.DOWNLOAD,
+                    url=f"/{nome_arquivo}",
+                    url_target="_blank",
+                    color="white",
+                    bgcolor="#16A34A",
+                    height=50
+                )
+            ], horizontal_alignment="crossAxisAlignment.CENTER")
             
             texto_botao = e.control.content.controls[0]
             texto_botao.value = "EXPORTAR EM PDF"
             e.control.update()
-            
-            page.launch_url(f"/{nome_arquivo}")
 
         except Exception as erro:
             resultado_texto.value = f"Erro ao gerar PDF: {erro}"
