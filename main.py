@@ -1,9 +1,6 @@
 import flet as ft
-import json
 import os
 import unicodedata
-
-ARQUIVO_CONFIG = "padrao_art_util.json"
 
 def main(page: ft.Page):
     # --- CONFIGURAÇÕES GERAIS E PROPORÇÃO DE SMARTPHONE ---
@@ -259,7 +256,7 @@ def main(page: ft.Page):
 
 
     # ==========================================
-    # LÓGICA DE SALVAMENTO NATIVA E BOTÕES
+    # LÓGICA DE SALVAMENTO CLIENT_STORAGE
     # ==========================================
     def salvar_padrao(e):
         dados_salvar = {
@@ -280,9 +277,9 @@ def main(page: ft.Page):
         texto_botao = e.control.content.controls[0]
         
         try:
-            with open(ARQUIVO_CONFIG, "w", encoding="utf-8") as arquivo:
-                json.dump(dados_salvar, arquivo, ensure_ascii=False, indent=4)
-            texto_botao.value = "✓ Padrão Salvo!"
+            # Salva na memória do navegador do usuário
+            page.client_storage.set("padrao_art_util", dados_salvar)
+            texto_botao.value = "✓ Padrão Salvo no Celular!"
             texto_botao.color = "#16A34A"
         except Exception as erro:
             texto_botao.value = "Erro ao salvar!"
@@ -301,13 +298,8 @@ def main(page: ft.Page):
     aba_mo_fixos.controls.extend([ft.Container(height=10), criar_botao_salvar()])
 
     def carregar_padrao():
-        dados = None
-        if os.path.exists(ARQUIVO_CONFIG):
-            try:
-                with open(ARQUIVO_CONFIG, "r", encoding="utf-8") as arquivo:
-                    dados = json.load(arquivo)
-            except Exception:
-                dados = None
+        # Busca os dados salvos na memória do navegador do usuário
+        dados = page.client_storage.get("padrao_art_util")
         
         if dados:
             txt_comissao.value = dados["plataforma"].get("comissao", "")
@@ -429,15 +421,12 @@ def main(page: ft.Page):
         nome_arquivo = f"Relatorio_{nome_prod.replace(' ', '_')}.pdf"
         
         try:
-            # Cria a pasta assets caso não exista no servidor
             if not os.path.exists("assets"):
                 os.makedirs("assets")
                 
-            # Salva o arquivo fisicamente na pasta de assets
             caminho_arquivo = f"assets/{nome_arquivo}"
             pdf.output(caminho_arquivo)
             
-            # Avisa o usuário na tela e devolve o botão ao estado normal
             resultado_texto.value = "✓ PDF GERADO!\nO download iniciará automaticamente."
             resultado_texto.color = "#16A34A"
             card_resultado.content = resultado_texto
@@ -446,7 +435,6 @@ def main(page: ft.Page):
             texto_botao.value = "EXPORTAR EM PDF"
             e.control.update()
             
-            # Força o navegador a baixar o arquivo da pasta assets
             page.launch_url(f"/{nome_arquivo}")
 
         except Exception as erro:
@@ -513,6 +501,5 @@ def main(page: ft.Page):
     
     page.add(header, menu_navegacao, ft.Divider(height=1, color=COR_BORDA), area_conteudo)
 
-# Configuração para rodar no servidor em nuvem (Render, etc.)
 porta = int(os.environ.get("PORT", 8080))
 ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=porta, host="0.0.0.0", assets_dir="assets")
