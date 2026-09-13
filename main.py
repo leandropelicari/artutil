@@ -421,10 +421,13 @@ def main(page: ft.Page):
         nome_arquivo = f"Relatorio_{nome_prod.replace(' ', '_')}.pdf"
         
         try:
-            # Gera o PDF em bytes na memória e codifica em Base64 (Data URI)
-            pdf_bytes = pdf.output()
-            if isinstance(pdf_bytes, str):
-                pdf_bytes = pdf_bytes.encode('latin1')
+            # Captura correta do conteúdo binário do PDF usando dest='S'
+            pdf_output = pdf.output(dest='S')
+            if isinstance(pdf_output, str):
+                pdf_bytes = pdf_output.encode('latin1')
+            else:
+                pdf_bytes = pdf_output
+                
             b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
             data_uri = f"data:application/pdf;base64,{b64_pdf}"
             
