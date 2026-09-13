@@ -1,6 +1,7 @@
 import flet as ft
 import os
 import unicodedata
+import base64
 
 def main(page: ft.Page):
     # --- CONFIGURAÇÕES GERAIS E PROPORÇÃO DE SMARTPHONE ---
@@ -420,20 +421,15 @@ def main(page: ft.Page):
         nome_arquivo = f"Relatorio_{nome_prod.replace(' ', '_')}.pdf"
         
         try:
-            if not os.path.exists("assets"):
-                os.makedirs("assets")
-                
-            caminho_arquivo = f"assets/{nome_arquivo}"
-            pdf.output(caminho_arquivo)
+            # Gera o PDF em bytes na memória e codifica em Base64 (Data URI)
+            pdf_bytes = pdf.output()
+            if isinstance(pdf_bytes, str):
+                pdf_bytes = pdf_bytes.encode('latin1')
+            b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+            data_uri = f"data:application/pdf;base64,{b64_pdf}"
             
-            # Converte wss:// para https:// de forma segura para o navegador abrir o PDF
             def abrir_pdf(e):
-                base_url = page.url.rstrip("/")
-                if base_url.startswith("wss://"):
-                    base_url = base_url.replace("wss://", "https://")
-                elif base_url.startswith("ws://"):
-                    base_url = base_url.replace("ws://", "http://")
-                page.launch_url(f"{base_url}/{nome_arquivo}")
+                page.launch_url(data_uri)
 
             card_resultado.content = ft.Column([
                 ft.Text("✓ PDF GERADO COM SUCESSO!", weight="bold", size=16, color="#16A34A", text_align="center"),
