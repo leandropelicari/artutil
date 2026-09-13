@@ -423,6 +423,11 @@ def main(page: ft.Page):
             caminho_arquivo = f"assets/{nome_arquivo}"
             pdf.output(caminho_arquivo)
             
+            # Função interna para disparar o download absoluto via page.launch_url sem atualizar a página
+            def abrir_pdf(e):
+                base_url = page.url.rstrip("/")
+                page.launch_url(f"{base_url}/{nome_arquivo}")
+
             card_resultado.content = ft.Column([
                 ft.Text("✓ PDF GERADO COM SUCESSO!", weight="bold", size=16, color="#16A34A", text_align="center"),
                 ft.Text(f"Arquivo: {nome_arquivo}", size=13, color=COR_TEXTO, text_align="center"),
@@ -430,8 +435,7 @@ def main(page: ft.Page):
                 ft.ElevatedButton(
                     text="BAIXAR ARQUIVO PDF",
                     icon=ft.icons.DOWNLOAD,
-                    url=f"/{nome_arquivo}",
-                    url_target="_blank",
+                    on_click=abrir_pdf,
                     color="white",
                     bgcolor="#16A34A",
                     height=50
