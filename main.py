@@ -426,7 +426,6 @@ def main(page: ft.Page):
                 with open(caminho_fisico, "wb") as f:
                     f.write(pdf_bytes)
                 
-                # Extrai a URL limpa base do site (removendo rotas ou fragmentos)
                 base_url = page.url.split("#")[0].split("?")[0].rstrip("/")
                 if base_url.startswith("ws://"):
                     base_url = base_url.replace("ws://", "http://")
@@ -434,7 +433,8 @@ def main(page: ft.Page):
                     base_url = base_url.replace("wss://", "https://")
                 
                 url_completo = f"{base_url}/assets/{nome_arquivo}"
-                page.launch_url(url_completo)
+                # O parâmetro web_window_name="_blank" abre em nova aba sem substituir a página do app
+                page.launch_url(url_completo, web_window_name="_blank")
             except Exception as ex:
                 print("Erro ao gerar PDF Web:", ex)
 
