@@ -342,7 +342,7 @@ def main(page: ft.Page):
         adicionar_item_fixo("", "")
 
     # ==========================================
-    # EXPORTAÇÃO PDF
+    # EXPORTAÇÃO PDF CORRIGIDA
     # ==========================================
     def exportar_pdf(e):
         try:
@@ -387,22 +387,19 @@ def main(page: ft.Page):
         pdf.cell(100, 10, txt="CUSTO TOTAL:", border=0)
         pdf.cell(90, 10, txt=f"R$ {custo_total:.2f}", border=0, ln=True, align='R')
         pdf.ln(5)
-        pdf.set_font("Arial", 'L', 12) # ajustado para B caso prefira negrito
+        pdf.set_font("Arial", 'B', 12)  # Corrigido de 'L' para 'B'
         pdf.cell(100, 10, txt="LUCRO LIQUIDO:", border=0)
         pdf.cell(90, 10, txt=f"R$ {lucro_unitario:.2f}", border=0, ln=True, align='R')
 
-        try:
-            pdf_output = pdf.output(dest='S')
-            if isinstance(pdf_output, str):
-                pdf_bytes = pdf_output.encode('latin1')
-            else:
-                pdf_bytes = pdf_output
-                
-            b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-            data_uri = f"data:application/pdf;base64,{b64_pdf}"
-            page.launch_url(data_uri)
-        except Exception:
-            pass
+        pdf_output = pdf.output(dest='S')
+        if isinstance(pdf_output, str):
+            pdf_bytes = pdf_output.encode('latin1')
+        else:
+            pdf_bytes = pdf_output
+            
+        b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+        data_uri = f"data:application/pdf;base64,{b64_pdf}"
+        page.launch_url(data_uri)
 
     btn_pdf = ft.Container(
         content=ft.Row([ft.Text("EXPORTAR EM PDF", color="white", weight="bold")], alignment="center"),
@@ -429,7 +426,6 @@ def main(page: ft.Page):
         page.clean()
 
         if novo_modo == "desktop":
-            # Coluna esquerda com scroll independente
             coluna_esquerda = ft.Column([
                 ft.Text("1. Dados da Venda e Plataforma", size=16, weight="bold", color=COR_PRETA),
                 bloco_plataforma,
@@ -444,7 +440,6 @@ def main(page: ft.Page):
 
             container_esquerda = ft.Container(content=coluna_esquerda, expand=6, padding=25)
 
-            # Coluna direita com scroll independente
             coluna_direita = ft.Column([
                 ft.Text("Painel de Resultados (Ao Vivo)", size=18, weight="bold", color=COR_PRETA),
                 card_resultado,
