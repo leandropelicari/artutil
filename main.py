@@ -350,7 +350,12 @@ def main(page: ft.Page):
             ft.Row([ft.Text("LUCRO LÍQUIDO", size=18, weight="bold", color=cor_lucro), ft.Text(f"R$ {lucro_unitario:.2f}", size=18, weight="bold", color=cor_lucro)], alignment="spaceBetween"),
             ft.Row([ft.Text("MARGEM", size=14, color=cor_lucro), ft.Text(f"{margem_real:.1f}%", size=14, weight="bold", color=cor_lucro)], alignment="spaceBetween"),
         ])
-        card_resultado.update()
+        
+        # Protege o update caso o componente ainda não tenha sido adicionado à página
+        try:
+            card_resultado.update()
+        except Exception:
+            pass
 
     def exportar_pdf(e):
         try:
@@ -428,7 +433,6 @@ def main(page: ft.Page):
     calcular_tudo(None)
 
     if is_desktop:
-        # Layout de Computador: Painel Duplo (Esquerda: Abas com Inputs | Direita: Resultados Fixos)
         conteudos_desktop = [
             ft.Container(bloco_plataforma, padding=20),
             ft.Container(bloco_materia_prima, padding=20),
@@ -482,7 +486,6 @@ def main(page: ft.Page):
         page.add(header, ft.Container(content=corpo_principal, expand=True, padding=20))
 
     else:
-        # Layout de Celular / Web: Abas Verticais originais
         aba_plataforma_cel = ft.Column([bloco_plataforma, ft.Container(height=10)], scroll="auto", spacing=15)
         aba_materia_prima_cel = ft.Column([bloco_materia_prima, ft.Container(height=10)], scroll="auto", spacing=15)
         aba_mo_fixos_cel = ft.Column([bloco_mo_fixos, ft.Container(height=10)], scroll="auto", spacing=15)
