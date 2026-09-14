@@ -359,7 +359,7 @@ def main(page: ft.Page):
         adicionar_item_fixo("", "")
 
     # ==========================================
-    # EXPORTAÇÃO PDF CORRETA
+    # EXPORTAÇÃO PDF COM URL ABSOLUTA CORRETA
     # ==========================================
     def exportar_pdf(e):
         nonlocal pdf_bytes_pendente
@@ -428,19 +428,21 @@ def main(page: ft.Page):
                 with open(caminho_fisico, "wb") as f:
                     f.write(pdf_bytes)
                 
-                base_url = page.url.split("#")[0].split("?")[0].rstrip("/")
-                if base_url.startswith("ws://"):
-                    base_url = base_url.replace("ws://", "http://")
-                elif base_url.startswith("wss://"):
-                    base_url = base_url.replace("wss://", "https://")
+                # Monta a URL ABSOLUTA garantindo que o Flet SPA não intercepte como rota interna
+                raw_url = page.url.split("#")[0].split("?")[0].rstrip("/")
+                if raw_url.startswith("ws://"):
+                    base_url = raw_url.replace("ws://", "http://")
+                elif raw_url.startswith("wss://"):
+                    base_url = raw_url.replace("wss://", "https://")
+                else:
+                    base_url = raw_url
                 
-                # O pulo do gato: Flet serve a pasta assets na raiz do site (/), sem o prefixo /assets/
-                url_completo = f"{base_url}/{nome_arquivo}"
+                url_absoluto = f"{base_url}/{nome_arquivo}"
                 
                 container_btn_web.content = ft.ElevatedButton(
                     text="📥 CLIQUE PARA BAIXAR O PDF",
                     icon=ft.icons.DOWNLOAD,
-                    url=url_completo,
+                    url=url_absoluto,
                     url_target="_blank",
                     color="white",
                     bgcolor="#16A34A",
