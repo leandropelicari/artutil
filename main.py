@@ -89,7 +89,6 @@ def main(page: ft.Page):
     resultado_texto = ft.Text("Preencha os dados para ver o resultado.", size=14, color=COR_TEXTO, text_align="center")
     card_resultado = ft.Container(content=resultado_texto, bgcolor="white", border_radius=12, padding=20)
     
-    # Container dinâmico para o botão de download na web (evita recarregar o app)
     container_btn_web = ft.Container()
 
     def calcular_tudo(e=None):
@@ -361,7 +360,7 @@ def main(page: ft.Page):
         adicionar_item_fixo("", "")
 
     # ==========================================
-    # EXPORTAÇÃO PDF COM DATA URI SEGURA (SEM REDIRECIONAR O APP)
+    # EXPORTAÇÃO PDF (NATIVO WINDOWS vs DATA URI WEB)
     # ==========================================
     def exportar_pdf(e):
         nonlocal pdf_bytes_pendente
@@ -423,8 +422,7 @@ def main(page: ft.Page):
             pdf_bytes_pendente = pdf_bytes
             file_picker.save_file(file_name=nome_arquivo, allowed_extensions=["pdf"])
         else:
-            # Na Web/Celular: Cria um link encapsulado em Data URI pura (Base64)
-            # Isso impede qualquer colapso do roteador SPA do Flet, pois o arquivo está embutido no link
+            # Na Web / Android: Usa Data URI pura em Base64 (conforme sua sugestão testada)
             b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
             data_uri = f"data:application/pdf;base64,{b64_pdf}"
             
@@ -541,4 +539,5 @@ def main(page: ft.Page):
     construir_ui()
 
 porta = int(os.environ.get("PORT", 8080))
+# IMPORTANTE: Se rodar no Render, usa WEB_BROWSER. Para rodar nativo no Windows como aplicativo de desktop, remova o argumento view=ft.AppView.WEB_BROWSER.
 ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=porta, host="0.0.0.0", assets_dir="assets")
