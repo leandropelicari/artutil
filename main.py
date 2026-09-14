@@ -18,7 +18,7 @@ def main(page: ft.Page):
 
     pdf_bytes_pendente = None
 
-    # FilePicker (desktop) - handler atribuído depois da criação
+    # --- CONFIGURAÇÃO DO FILE PICKER (NATIVO DO WINDOWS) ---
     def on_file_picker_result(e: ft.FilePickerResultEvent):
         nonlocal pdf_bytes_pendente
         if not getattr(e, "path", None):
@@ -37,7 +37,7 @@ def main(page: ft.Page):
     file_picker.on_result = on_file_picker_result
     page.overlay.append(file_picker)
 
-    # Helpers UI
+    # --- HELPERS UI ---
     def criar_campo_texto(label, valor="", on_change=None):
         return ft.TextField(
             label=label,
@@ -77,7 +77,7 @@ def main(page: ft.Page):
     def remover_acentos(texto):
         return ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
 
-    # Header
+    # --- HEADER ---
     header = ft.Container(
         content=ft.Row([
             ft.Column([
@@ -90,7 +90,7 @@ def main(page: ft.Page):
         padding=20
     )
 
-    # Resultado
+    # --- RESULTADO ---
     resultado_texto = ft.Text("Preencha os dados para ver o resultado.", size=14, color=COR_TEXTO, text_align="center")
     card_resultado = ft.Container(content=resultado_texto, bgcolor="white", border_radius=12, padding=20)
 
@@ -137,7 +137,7 @@ def main(page: ft.Page):
         except Exception:
             pass
 
-    # Campos
+    # --- CAMPOS ---
     txt_cliente = criar_campo_texto("Nome do cliente", on_change=calcular_tudo)
     txt_produto = criar_campo_texto("Nome do produto", on_change=calcular_tudo)
 
@@ -153,7 +153,7 @@ def main(page: ft.Page):
         txt_preco_bruto, txt_comissao, txt_impulsionamento, txt_promocao, txt_imposto
     ], spacing=15)
 
-    # Matéria prima
+    # --- MATÉRIA PRIMA ---
     lista_materiais_padrao = [
         "Tábua 25x300x2", "Tábua 30x300x2", "Parafuso 1/4\"x2\"",
         "Parafuso 3,5 x 30", "Parafuso 3,5 x 40", "Pino tipo F",
@@ -172,6 +172,7 @@ def main(page: ft.Page):
 
         opcoes_dd = [ft.dropdown.Option(m) for m in lista_materiais_padrao]
 
+        # criar Dropdown sem passar on_change no construtor
         dd_nome = ft.Dropdown(
             label="Selecione o Material",
             options=opcoes_dd,
@@ -182,7 +183,7 @@ def main(page: ft.Page):
             content_padding=15,
             label_style=ft.TextStyle(color=COR_TEXTO)
         )
-        # atribui handler depois para compatibilidade com versões do Flet
+        # atribuir handler depois
         dd_nome.on_change = calcular_tudo
 
         def remover_item(e_rem):
@@ -233,7 +234,7 @@ def main(page: ft.Page):
         btn_add_mp
     ], spacing=15)
 
-    # Mão de obra e fixos
+    # --- MÃO DE OBRA E FIXOS ---
     txt_tempo = criar_campo_numero("Tempo Estimado (Horas)", valor="", on_change=calcular_tudo)
     txt_valor_hora = criar_campo_numero("Valor por Hora", prefixo="R$ ", valor="", on_change=calcular_tudo)
     txt_margem_lucro_desejada = criar_campo_numero("Margem Lucro Desejada", sufixo=" %", valor="", on_change=calcular_tudo)
@@ -315,7 +316,7 @@ def main(page: ft.Page):
         btn_add_fixo
     ], spacing=15)
 
-    # Salvamento client_storage
+    # --- SALVAMENTO CLIENT_STORAGE ---
     def salvar_padrao(e):
         dados_salvar = {
             "plataforma": {
@@ -360,7 +361,7 @@ def main(page: ft.Page):
         adicionar_item_mp("", "", "")
         adicionar_item_fixo("", "")
 
-    # Exportar PDF (desktop: FilePicker; web: data URL)
+    # --- EXPORTAÇÃO PDF ---
     def exportar_pdf(e):
         nonlocal pdf_bytes_pendente
         try:
@@ -457,9 +458,11 @@ def main(page: ft.Page):
         padding=15, bgcolor="#DC2626", border_radius=30, on_click=exportar_pdf
     )
 
+    # Inicialização
     carregar_padrao()
     calcular_tudo(None)
 
+    # --- LAYOUT RESPONSIVO ---
     ultimo_modo = None
 
     def construir_ui(e=None):
