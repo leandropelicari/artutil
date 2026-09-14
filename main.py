@@ -1,7 +1,6 @@
 import flet as ft
 import os
 import unicodedata
-import base64
 
 def main(page: ft.Page):
     is_desktop = not page.web
@@ -10,7 +9,6 @@ def main(page: ft.Page):
     page.bgcolor = "#F9F6F0"
     page.padding = 0
     
-    # --- PALETA DE CORES DA ART ÚTIL ---
     COR_PRETA = "#171717"
     COR_PINUS = "#EADDCE"
     COR_BORDA = "#D4C4B7"
@@ -18,7 +16,7 @@ def main(page: ft.Page):
     
     pdf_bytes_pendente = None
 
-    # --- CONFIGURAÇÃO DO FILE PICKER (NATIVO DO WINDOWS) ---
+    # --- CONFIGURAÇÃO DO FILE PICKER (WINDOWS NATIVO) ---
     def on_file_picker_result(e: ft.FilePickerResultEvent):
         nonlocal pdf_bytes_pendente
         if e.path and pdf_bytes_pendente:
@@ -31,17 +29,11 @@ def main(page: ft.Page):
     file_picker = ft.FilePicker(on_result=on_file_picker_result)
     page.overlay.append(file_picker)
 
-    # --- FUNÇÕES DE INTERFACE SEGURAS ---
     def criar_campo_texto(label, valor="", on_change=None):
         return ft.TextField(
-            label=label,
-            value=valor,
-            on_change=on_change,
-            border_radius=12,
-            border_color=COR_BORDA,
-            focused_border_color=COR_PRETA,
-            content_padding=15,
-            label_style=ft.TextStyle(color=COR_TEXTO)
+            label=label, value=valor, on_change=on_change,
+            border_radius=12, border_color=COR_BORDA, focused_border_color=COR_PRETA,
+            content_padding=15, label_style=ft.TextStyle(color=COR_TEXTO)
         )
 
     def criar_campo_numero(label, prefixo="", sufixo="", valor="", on_change=None):
@@ -49,15 +41,9 @@ def main(page: ft.Page):
             label=label, 
             prefix=ft.Text(prefixo, color="#A8A29E") if prefixo else None, 
             suffix=ft.Text(sufixo, color="#A8A29E") if sufixo else None, 
-            value=valor, 
-            on_change=on_change,
-            keyboard_type="number",
-            text_align="right",
-            border_radius=12,
-            border_color=COR_BORDA,
-            focused_border_color=COR_PRETA,
-            content_padding=15,
-            label_style=ft.TextStyle(color=COR_TEXTO)
+            value=valor, on_change=on_change, keyboard_type="number", text_align="right",
+            border_radius=12, border_color=COR_BORDA, focused_border_color=COR_PRETA,
+            content_padding=15, label_style=ft.TextStyle(color=COR_TEXTO)
         )
 
     def extrair_numero(campo):
@@ -70,7 +56,6 @@ def main(page: ft.Page):
     def remover_acentos(texto):
         return ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
 
-    # --- HEADER (LOGOTIPO ART ÚTIL) ---
     header = ft.Container(
         content=ft.Row([
             ft.Column([
@@ -79,13 +64,9 @@ def main(page: ft.Page):
                 ft.Text("MÓVEIS DE PINUS", size=12, weight="bold", color=COR_PRETA)
             ], spacing=0, horizontal_alignment="center")
         ], alignment="center"),
-        bgcolor=COR_PINUS,
-        padding=20
+        bgcolor=COR_PINUS, padding=20
     )
 
-    # ==========================================
-    # LÓGICA DE CÁLCULO E RESULTADOS (AO VIVO)
-    # ==========================================
     resultado_texto = ft.Text("Preencha os dados para ver o resultado.", size=14, color=COR_TEXTO, text_align="center")
     card_resultado = ft.Container(content=resultado_texto, bgcolor="white", border_radius=12, padding=20)
 
@@ -125,18 +106,13 @@ def main(page: ft.Page):
             ft.Row([ft.Text("LUCRO LÍQUIDO", size=18, weight="bold", color=cor_lucro), ft.Text(f"R$ {lucro_unitario:.2f}", size=18, weight="bold", color=cor_lucro)], alignment="spaceBetween"),
             ft.Row([ft.Text("MARGEM", size=14, color=cor_lucro), ft.Text(f"{margem_real:.1f}%", size=14, weight="bold", color=cor_lucro)], alignment="spaceBetween"),
         ])
-        
         try:
             card_resultado.update()
         except Exception:
             pass
 
-    # ==========================================
-    # CAMPOS DE ENTRADA
-    # ==========================================
     txt_cliente = criar_campo_texto("Nome do cliente", on_change=calcular_tudo)
     txt_produto = criar_campo_texto("Nome do produto", on_change=calcular_tudo)
-    
     txt_preco_bruto = criar_campo_numero("Preço produto (Bruto)", prefixo="R$ ", on_change=calcular_tudo)
     txt_comissao = criar_campo_numero("Comissão plataforma", sufixo=" %", on_change=calcular_tudo)
     txt_impulsionamento = criar_campo_numero("Impulsionamento", prefixo="R$ ", on_change=calcular_tudo)
@@ -144,12 +120,10 @@ def main(page: ft.Page):
     txt_imposto = criar_campo_numero("Imposto", sufixo=" %", on_change=calcular_tudo)
 
     bloco_plataforma = ft.Column([
-        txt_cliente, txt_produto,
-        ft.Container(height=5),
+        txt_cliente, txt_produto, ft.Container(height=5),
         txt_preco_bruto, txt_comissao, txt_impulsionamento, txt_promocao, txt_imposto
     ], spacing=15)
 
-    # --- MATÉRIA PRIMA ---
     lista_materiais_padrao = [
         "Tábua 25x300x2", "Tábua 30x300x2", "Parafuso 1/4\"x2\"",
         "Parafuso 3,5 x 30", "Parafuso 3,5 x 40", "Pino tipo F",
@@ -165,70 +139,39 @@ def main(page: ft.Page):
         txt_qtd.expand = True
         txt_valor = criar_campo_numero("R$ Un.", valor=valor, on_change=calcular_tudo)
         txt_valor.expand = True
-        
         opcoes_dd = [ft.dropdown.Option(m) for m in lista_materiais_padrao]
-        
         dd_nome = ft.Dropdown(
-            label="Selecione o Material",
-            options=opcoes_dd,
-            value=nome if nome in lista_materiais_padrao else None,
-            on_change=calcular_tudo,
-            border_radius=12,
-            border_color=COR_BORDA,
-            focused_border_color=COR_PRETA,
-            content_padding=15,
-            label_style=ft.TextStyle(color=COR_TEXTO)
+            label="Selecione o Material", options=opcoes_dd,
+            value=nome if nome in lista_materiais_padrao else None, on_change=calcular_tudo,
+            border_radius=12, border_color=COR_BORDA, focused_border_color=COR_PRETA,
+            content_padding=15, label_style=ft.TextStyle(color=COR_TEXTO)
         )
-
         def remover_item(e_rem):
             coluna_mp_itens.controls.remove(cartao)
             campos_mp.remove(ref_dict)
             calcular_tudo()
             page.update()
-
         btn_remover = ft.Container(
             content=ft.Row([ft.Text("Excluir Item", color="#DC2626", weight="bold", size=13)], alignment="center"),
-            on_click=remover_item,
-            padding=10,
-            bgcolor="#FEE2E2",
-            border_radius=8
+            on_click=remover_item, padding=10, bgcolor="#FEE2E2", border_radius=8
         )
-        
         cartao = ft.Container(
-            content=ft.Column([
-                dd_nome,
-                ft.Row([txt_qtd, txt_valor]),
-                btn_remover
-            ]),
-            bgcolor="white",
-            padding=15,
-            border_radius=12
+            content=ft.Column([dd_nome, ft.Row([txt_qtd, txt_valor]), btn_remover]),
+            bgcolor="white", padding=15, border_radius=12
         )
-        
         ref_dict = {"get_nome": lambda: dd_nome.value or "", "ctrl_qtd": txt_qtd, "ctrl_valor": txt_valor}
         campos_mp.append(ref_dict)
         coluna_mp_itens.controls.append(cartao)
         calcular_tudo()
-        try:
-            page.update()
-        except Exception:
-            pass
+        try: page.update()
+        except Exception: pass
 
     btn_add_mp = ft.Container(
         content=ft.Row([ft.Text("+ Adicionar Material", color=COR_PRETA, weight="bold")], alignment="center"),
-        padding=12,
-        bgcolor=COR_PINUS,
-        border_radius=8,
-        on_click=lambda e: adicionar_item_mp() 
+        padding=12, bgcolor=COR_PINUS, border_radius=8, on_click=lambda e: adicionar_item_mp() 
     )
-    
-    bloco_materia_prima = ft.Column([
-        coluna_mp_itens,
-        ft.Container(height=5),
-        btn_add_mp
-    ], spacing=15)
+    bloco_materia_prima = ft.Column([coluna_mp_itens, ft.Container(height=5), btn_add_mp], spacing=15)
 
-    # --- MÃO DE OBRA E FIXOS ---
     txt_tempo = criar_campo_numero("Tempo Estimado (Horas)", valor="", on_change=calcular_tudo)
     txt_valor_hora = criar_campo_numero("Valor por Hora", prefixo="R$ ", valor="", on_change=calcular_tudo)
     txt_margem_lucro_desejada = criar_campo_numero("Margem Lucro Desejada", sufixo=" %", valor="", on_change=calcular_tudo)
@@ -245,74 +188,43 @@ def main(page: ft.Page):
     def adicionar_item_fixo(nome="", valor=""):
         txt_valor = criar_campo_numero("Valor Mensal R$", valor=valor, on_change=calcular_tudo)
         opcoes_dd_custo = [ft.dropdown.Option(c) for c in lista_custos_padrao]
-        
         dd_nome = ft.Dropdown(
-            label="Selecione o Custo",
-            options=opcoes_dd_custo,
-            value=nome if nome in lista_custos_padrao else None,
-            on_change=calcular_tudo,
-            border_radius=12,
-            border_color=COR_BORDA,
-            focused_border_color=COR_PRETA,
-            content_padding=15,
-            label_style=ft.TextStyle(color=COR_TEXTO)
+            label="Selecione o Custo", options=opcoes_dd_custo,
+            value=nome if nome in lista_custos_padrao else None, on_change=calcular_tudo,
+            border_radius=12, border_color=COR_BORDA, focused_border_color=COR_PRETA,
+            content_padding=15, label_style=ft.TextStyle(color=COR_TEXTO)
         )
-
         def remover_item(e_rem):
             coluna_fixos_itens.controls.remove(cartao)
             campos_fixos.remove(ref_dict)
             calcular_tudo()
             page.update()
-
         btn_remover = ft.Container(
             content=ft.Row([ft.Text("Excluir Custo", color="#DC2626", weight="bold", size=13)], alignment="center"),
-            on_click=remover_item,
-            padding=10,
-            bgcolor="#FEE2E2",
-            border_radius=8
+            on_click=remover_item, padding=10, bgcolor="#FEE2E2", border_radius=8
         )
-        
         cartao = ft.Container(
-            content=ft.Column([
-                dd_nome,
-                txt_valor,
-                btn_remover
-            ]),
-            bgcolor="white",
-            padding=15,
-            border_radius=12
+            content=ft.Column([dd_nome, txt_valor, btn_remover]),
+            bgcolor="white", padding=15, border_radius=12
         )
-        
         ref_dict = {"get_nome": lambda: dd_nome.value or "", "ctrl_valor": txt_valor}
         campos_fixos.append(ref_dict)
         coluna_fixos_itens.controls.append(cartao)
         calcular_tudo()
-        try:
-            page.update()
-        except Exception:
-            pass
+        try: page.update()
+        except Exception: pass
 
     btn_add_fixo = ft.Container(
         content=ft.Row([ft.Text("+ Adicionar Custo", color=COR_PRETA, weight="bold")], alignment="center"),
-        padding=12,
-        bgcolor=COR_PINUS,
-        border_radius=8,
-        on_click=lambda e: adicionar_item_fixo()
+        padding=12, bgcolor=COR_PINUS, border_radius=8, on_click=lambda e: adicionar_item_fixo()
     )
 
     bloco_mo_fixos = ft.Column([
         txt_tempo, txt_valor_hora, txt_margem_lucro_desejada,
-        ft.Divider(color=COR_BORDA),
-        ft.Text("Custos Fixos (Rateio)", size=16, weight="bold", color=COR_PRETA),
-        txt_volume_mensal,
-        coluna_fixos_itens,
-        ft.Container(height=5),
-        btn_add_fixo
+        ft.Divider(color=COR_BORDA), ft.Text("Custos Fixos (Rateio)", size=16, weight="bold", color=COR_PRETA),
+        txt_volume_mensal, coluna_fixos_itens, ft.Container(height=5), btn_add_fixo
     ], spacing=15)
 
-    # ==========================================
-    # SALVAMENTO CLIENT_STORAGE
-    # ==========================================
     def salvar_padrao(e):
         dados_salvar = {
             "plataforma": {
@@ -328,10 +240,8 @@ def main(page: ft.Page):
             "materiais": [{"nome": m["get_nome"](), "qtd": m["ctrl_qtd"].value, "valor": m["ctrl_valor"].value} for m in campos_mp],
             "fixos": [{"nome": f["get_nome"](), "valor": f["ctrl_valor"].value} for f in campos_fixos]
         }
-        try:
-            page.client_storage.set("padrao_art_util", dados_salvar)
-        except Exception:
-            pass
+        try: page.client_storage.set("padrao_art_util", dados_salvar)
+        except Exception: pass
 
     def carregar_padrao():
         try:
@@ -343,23 +253,18 @@ def main(page: ft.Page):
                 txt_valor_hora.value = dados["mo"].get("valor_hora", "")
                 txt_margem_lucro_desejada.value = dados["mo"].get("margem", "")
                 txt_volume_mensal.value = dados["mo"].get("volume", "1")
-                
                 for m in dados["materiais"]:
                     adicionar_item_mp(m["nome"], m["qtd"], m["valor"])
-                    
                 for f in dados["fixos"]:
                     adicionar_item_fixo(f["nome"], f["valor"])
                 return
-        except Exception:
-            pass
-            
+        except Exception: pass
         txt_volume_mensal.value = "1"
         adicionar_item_mp("", "", "")
         adicionar_item_fixo("", "")
 
-    # ==========================================
-    # EXPORTAÇÃO PDF ADAPTADA (WINDOWS vs WEB)
-    # ==========================================
+    btn_pdf_container = ft.Container()
+
     def exportar_pdf(e):
         nonlocal pdf_bytes_pendente
         try:
@@ -378,10 +283,8 @@ def main(page: ft.Page):
 
         pdf = FPDF()
         pdf.add_page()
-        
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(190, 10, txt="ART UTIL - RELATORIO DE CUSTOS", ln=True, align='C')
-        
         pdf.set_font("Arial", 'B', 12)
         nome_prod = remover_acentos(txt_produto.value.upper() if txt_produto.value else "PRODUTO_NAO_INFORMADO")
         pdf.cell(190, 10, txt=f"PRODUTO: {nome_prod}", ln=True, align='C')
@@ -420,40 +323,34 @@ def main(page: ft.Page):
             pdf_bytes_pendente = pdf_bytes
             file_picker.save_file(file_name=nome_arquivo, allowed_extensions=["pdf"])
         else:
-            # Na web, atualiza o card de resultado exibindo um botão nativo com a URL de dados
-            b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-            data_uri = f"data:application/pdf;base64,{b64_pdf}"
-            
-            card_resultado.content = ft.Column([
-                ft.Text("✓ PDF GERADO COM SUCESSO!", weight="bold", size=16, color="#16A34A", text_align="center"),
-                ft.Text(f"Arquivo: {nome_arquivo}", size=13, color=COR_TEXTO, text_align="center"),
-                ft.Container(height=10),
-                ft.ElevatedButton(
+            try:
+                if not os.path.exists("assets"):
+                    os.makedirs("assets")
+                caminho_fisico = os.path.join("assets", nome_arquivo)
+                with open(caminho_fisico, "wb") as f:
+                    f.write(pdf_bytes)
+                
+                btn_pdf_container.content = ft.ElevatedButton(
                     text="BAIXAR ARQUIVO PDF",
                     icon=ft.icons.DOWNLOAD,
-                    url=data_uri,
-                    url_target=ft.UrlTarget.BLANK,
+                    url=f"/{nome_arquivo}",
+                    url_target="_blank",
                     color="white",
                     bgcolor="#16A34A",
                     height=50
                 )
-            ], horizontal_alignment="center")
-            try:
-                card_resultado.update()
-            except Exception:
-                pass
+                btn_pdf_container.update()
+            except Exception as ex:
+                print("Erro ao salvar PDF:", ex)
 
-    btn_pdf = ft.Container(
-        content=ft.Row([ft.Text("EXPORTAR EM PDF", color="white", weight="bold")], alignment="center"),
+    btn_gerar_pdf = ft.Container(
+        content=ft.Row([ft.Text("GERAR PDF", color="white", weight="bold")], alignment="center"),
         padding=15, bgcolor="#DC2626", border_radius=30, on_click=exportar_pdf
     )
 
     carregar_padrao()
     calcular_tudo(None)
 
-    # ==========================================
-    # LAYOUT RESPONSIVO INTELIGENTE (COM SCROLL)
-    # ==========================================
     ultimo_modo = None
 
     def construir_ui(e=None):
@@ -486,7 +383,8 @@ def main(page: ft.Page):
                 ft.Text("Painel de Resultados (Ao Vivo)", size=18, weight="bold", color=COR_PRETA),
                 card_resultado,
                 ft.Container(height=10),
-                btn_pdf
+                btn_gerar_pdf,
+                btn_pdf_container
             ], scroll="auto", spacing=15, expand=True)
 
             container_direita = ft.Container(content=coluna_direita, expand=4, padding=25)
@@ -503,7 +401,7 @@ def main(page: ft.Page):
             aba_plataforma_cel = ft.Column([ft.Text("Dados da Venda", size=16, weight="bold", color=COR_PRETA), bloco_plataforma], scroll="auto", spacing=15)
             aba_materia_prima_cel = ft.Column([ft.Text("Matéria Prima", size=16, weight="bold", color=COR_PRETA), bloco_materia_prima], scroll="auto", spacing=15)
             aba_mo_fixos_cel = ft.Column([ft.Text("Mão de Obra e Custos", size=16, weight="bold", color=COR_PRETA), bloco_mo_fixos], scroll="auto", spacing=15)
-            aba_resultados_cel = ft.Column([btn_pdf, ft.Container(height=10), card_resultado], scroll="auto")
+            aba_resultados_cel = ft.Column([btn_gerar_pdf, ft.Container(height=10), btn_pdf_container, ft.Container(height=10), card_resultado], scroll="auto")
 
             conteudos_cel = [aba_plataforma_cel, aba_materia_prima_cel, aba_mo_fixos_cel, aba_resultados_cel]
             nomes_abas_cel = ["Venda", "Materiais", "Custos", "Relatório"]
