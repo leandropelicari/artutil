@@ -1,7 +1,7 @@
 import flet as ft
 import os
 import unicodedata
-import base64
+import uuid
 
 def main(page: ft.Page):
     is_desktop = not page.web
@@ -360,7 +360,9 @@ def main(page: ft.Page):
         adicionar_item_fixo("", "")
 
     # ==========================================
-    # EXPORTAÇÃO PDF (NATIVO WINDOWS vs DATA URI WEB)
+    # EXPORTAÇÃO PDF
+    # Windows nativo: FilePicker
+    # Render/Flet Web: arquivo HTTP servido por assets
     # ==========================================
     def exportar_pdf(e):
         nonlocal pdf_bytes_pendente
@@ -416,26 +418,47 @@ def main(page: ft.Page):
         else:
             pdf_bytes = pdf_output
 
-        nome_arquivo = f"Relatorio_{nome_prod.replace(' ', '_')}.pdf"
+        # Mantém o nome amigável, mas adiciona um ID para evitar colisões no Render.
+        nome_base = nome_prod.replace(' ', '_') or 'PRODUTO_NAO_INFORMADO'
+        nome_arquivo = f"Relatorio_{nome_base}_{uuid.uuid4().hex[:8]}.pdf"
 
         if is_desktop:
+            # Aplicativo Flet nativo no Windows: abre o seletor de salvar do Windows.
             pdf_bytes_pendente = pdf_bytes
-            file_picker.save_file(file_name=nome_arquivo, allowed_extensions=["pdf"])
-        else:
-            # Na Web / Android: Usa Data URI pura em Base64 (conforme sua sugestão testada)
-            b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-            data_uri = f"data:application/pdf;base64,{b64_pdf}"
-            
-            container_btn_web.content = ft.ElevatedButton(
-                text="📥 CLIQUE PARA BAIXAR O PDF",
-                icon=ft.icons.DOWNLOAD,
-                url=data_uri,
-                url_target="_blank",
-                color="white",
-                bgcolor="#16A34A",
-                height=50
+            file_picker.save_file(
+                file_name=nome_arquivo,
+                allowed_extensions=["pdf"]
             )
-            container_btn_web.update()
+        else:
+            # Render / navegador: não usa FilePicker nem data: URI.
+            # O PDF é colocado no diretório de assets, que o Flet Web já expõe por HTTP.
+            pasta_pdf = os.path.join("assets", "pdf")
+            os.makedirs(pasta_pdf, exist_ok=True)
+            caminho_pdf = os.path.join(pasta_pdf, nome_arquivo)
+
+            try:
+                with open(caminho_pdf, "wb") as f:
+                    f.write(pdf_bytes)
+
+                # Link HTTP normal: funciona no Chrome/Edge/Windows e também no Android.
+                url_pdf = f"/assets/pdf/{nome_arquivo}"
+
+                container_btn_web.content = ft.ElevatedButton(
+                    text="📥 CLIQUE PARA BAIXAR O PDF",
+                    icon=ft.icons.DOWNLOAD,
+                    url=url_pdf,
+                    url_target="_blank",
+                    color="white",
+                    bgcolor="#16A34A",
+                    height=50
+                )
+                container_btn_web.update()
+            except Exception as erro:
+                container_btn_web.content = ft.Text(
+                    f"Erro ao gerar o arquivo PDF: {erro}",
+                    color="#DC2626"
+                )
+                container_btn_web.update()
 
     btn_pdf = ft.Container(
         content=ft.Row([ft.Text("GERAR RELATÓRIO PDF", color="white", weight="bold")], alignment="center"),
