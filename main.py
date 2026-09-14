@@ -1,6 +1,7 @@
 import flet as ft
 import os
 import unicodedata
+import base64
 
 def main(page: ft.Page):
     is_desktop = not page.web
@@ -8,24 +9,29 @@ def main(page: ft.Page):
     page.theme_mode = "light"
     page.bgcolor = "#F9F6F0"
     page.padding = 0
-    
+
     # --- PALETA DE CORES DA ART ÚTIL ---
     COR_PRETA = "#171717"
     COR_PINUS = "#EADDCE"
     COR_BORDA = "#D4C4B7"
     COR_TEXTO = "#44403C"
-    
+
     pdf_bytes_pendente = None
 
     # --- CONFIGURAÇÃO DO FILE PICKER (NATIVO DO WINDOWS) ---
     def on_file_picker_result(e: ft.FilePickerResultEvent):
         nonlocal pdf_bytes_pendente
-        if e.path and pdf_bytes_pendente:
-            try:
+        if not e.path:
+            return
+        try:
+            if pdf_bytes_pendente:
                 with open(e.path, "wb") as f:
                     f.write(pdf_bytes_pendente)
-            except Exception:
-                pass
+                print(f"Arquivo salvo via FilePicker: {e.path}")
+                pdf_bytes_pendente = None
+        except Exception as ex:
+            print("Erro salvando arquivo via FilePicker:", ex)
+            pdf_bytes_pendente = None
 
     file_picker = ft.FilePicker(on_result=on_file_picker_result)
     page.overlay.append(file_picker)
@@ -45,10 +51,10 @@ def main(page: ft.Page):
 
     def criar_campo_numero(label, prefixo="", sufixo="", valor="", on_change=None):
         return ft.TextField(
-            label=label, 
-            prefix=ft.Text(prefixo, color="#A8A29E") if prefixo else None, 
-            suffix=ft.Text(sufixo, color="#A8A29E") if sufixo else None, 
-            value=valor, 
+            label=label,
+            prefix=ft.Text(prefixo, color="#A8A29E") if prefixo else None,
+            suffix=ft.Text(sufixo, color="#A8A29E") if sufixo else None,
+            value=valor,
             on_change=on_change,
             keyboard_type="number",
             text_align="right",
@@ -60,7 +66,8 @@ def main(page: ft.Page):
         )
 
     def extrair_numero(campo):
-        if not campo.value or campo.value.strip() == "": return 0.0
+        if not campo.value or campo.value.strip() == "":
+            return 0.0
         try:
             return float(campo.value.replace(",", "."))
         except ValueError:
@@ -101,7 +108,8 @@ def main(page: ft.Page):
         custo_mo = extrair_numero(txt_tempo) * extrair_numero(txt_valor_hora)
 
         volume = extrair_numero(txt_volume_mensal)
-        if volume == 0: volume = 1 
+        if volume == 0:
+            volume = 1
         custo_fixo_unitario = sum(extrair_numero(item["ctrl_valor"]) for item in campos_fixos) / volume
 
         custo_total = custo_mp + custo_mo + custo_fixo_unitario + descontos
@@ -124,7 +132,7 @@ def main(page: ft.Page):
             ft.Row([ft.Text("LUCRO LÍQUIDO", size=18, weight="bold", color=cor_lucro), ft.Text(f"R$ {lucro_unitario:.2f}", size=18, weight="bold", color=cor_lucro)], alignment="spaceBetween"),
             ft.Row([ft.Text("MARGEM", size=14, color=cor_lucro), ft.Text(f"{margem_real:.1f}%", size=14, weight="bold", color=cor_lucro)], alignment="spaceBetween"),
         ])
-        
+
         try:
             card_resultado.update()
         except Exception:
@@ -135,7 +143,7 @@ def main(page: ft.Page):
     # ==========================================
     txt_cliente = criar_campo_texto("Nome do cliente", on_change=calcular_tudo)
     txt_produto = criar_campo_texto("Nome do produto", on_change=calcular_tudo)
-    
+
     txt_preco_bruto = criar_campo_numero("Preço produto (Bruto)", prefixo="R$ ", on_change=calcular_tudo)
     txt_comissao = criar_campo_numero("Comissão plataforma", sufixo=" %", on_change=calcular_tudo)
     txt_impulsionamento = criar_campo_numero("Impulsionamento", prefixo="R$ ", on_change=calcular_tudo)
@@ -164,9 +172,9 @@ def main(page: ft.Page):
         txt_qtd.expand = True
         txt_valor = criar_campo_numero("R$ Un.", valor=valor, on_change=calcular_tudo)
         txt_valor.expand = True
-        
+
         opcoes_dd = [ft.dropdown.Option(m) for m in lista_materiais_padrao]
-        
+
         dd_nome = ft.Dropdown(
             label="Selecione o Material",
             options=opcoes_dd,
@@ -192,7 +200,7 @@ def main(page: ft.Page):
             bgcolor="#FEE2E2",
             border_radius=8
         )
-        
+
         cartao = ft.Container(
             content=ft.Column([
                 dd_nome,
@@ -203,7 +211,7 @@ def main(page: ft.Page):
             padding=15,
             border_radius=12
         )
-        
+
         ref_dict = {"get_nome": lambda: dd_nome.value or "", "ctrl_qtd": txt_qtd, "ctrl_valor": txt_valor}
         campos_mp.append(ref_dict)
         coluna_mp_itens.controls.append(cartao)
@@ -218,9 +226,9 @@ def main(page: ft.Page):
         padding=12,
         bgcolor=COR_PINUS,
         border_radius=8,
-        on_click=lambda e: adicionar_item_mp() 
+        on_click=lambda e: adicionar_item_mp()
     )
-    
+
     bloco_materia_prima = ft.Column([
         coluna_mp_itens,
         ft.Container(height=5),
@@ -234,7 +242,7 @@ def main(page: ft.Page):
     txt_volume_mensal = criar_campo_numero("Qtd Estimada de Clientes/Mês", valor="1", on_change=calcular_tudo)
 
     lista_custos_padrao = [
-        "Contador", "Aluguel", "Luz", "Água", "IPTU", 
+        "Contador", "Aluguel", "Luz", "Água", "IPTU",
         "Combustível", "Alimentação", "Manutenção Carro", "Manutenção Máquina"
     ]
 
@@ -244,7 +252,7 @@ def main(page: ft.Page):
     def adicionar_item_fixo(nome="", valor=""):
         txt_valor = criar_campo_numero("Valor Mensal R$", valor=valor, on_change=calcular_tudo)
         opcoes_dd_custo = [ft.dropdown.Option(c) for c in lista_custos_padrao]
-        
+
         dd_nome = ft.Dropdown(
             label="Selecione o Custo",
             options=opcoes_dd_custo,
@@ -270,7 +278,7 @@ def main(page: ft.Page):
             bgcolor="#FEE2E2",
             border_radius=8
         )
-        
+
         cartao = ft.Container(
             content=ft.Column([
                 dd_nome,
@@ -281,7 +289,7 @@ def main(page: ft.Page):
             padding=15,
             border_radius=12
         )
-        
+
         ref_dict = {"get_nome": lambda: dd_nome.value or "", "ctrl_valor": txt_valor}
         campos_fixos.append(ref_dict)
         coluna_fixos_itens.controls.append(cartao)
@@ -342,16 +350,16 @@ def main(page: ft.Page):
                 txt_valor_hora.value = dados["mo"].get("valor_hora", "")
                 txt_margem_lucro_desejada.value = dados["mo"].get("margem", "")
                 txt_volume_mensal.value = dados["mo"].get("volume", "1")
-                
+
                 for m in dados["materiais"]:
                     adicionar_item_mp(m["nome"], m["qtd"], m["valor"])
-                    
+
                 for f in dados["fixos"]:
                     adicionar_item_fixo(f["nome"], f["valor"])
                 return
         except Exception:
             pass
-            
+
         txt_volume_mensal.value = "1"
         adicionar_item_mp("", "", "")
         adicionar_item_fixo("", "")
@@ -364,6 +372,8 @@ def main(page: ft.Page):
         try:
             from fpdf import FPDF
         except ImportError:
+            page.snack_bar = ft.SnackBar(ft.Text("Biblioteca fpdf não encontrada. Instale com pip install fpdf"), open=True)
+            page.update()
             return
 
         bruto = extrair_numero(txt_preco_bruto)
@@ -377,10 +387,10 @@ def main(page: ft.Page):
 
         pdf = FPDF()
         pdf.add_page()
-        
+
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(190, 10, txt="ART UTIL - RELATORIO DE CUSTOS", ln=True, align='C')
-        
+
         pdf.set_font("Arial", 'B', 12)
         nome_prod = remover_acentos(txt_produto.value.upper() if txt_produto.value else "PRODUTO_NAO_INFORMADO")
         pdf.cell(190, 10, txt=f"PRODUTO: {nome_prod}", ln=True, align='C')
@@ -397,7 +407,7 @@ def main(page: ft.Page):
         pdf.cell(90, 10, txt=f"- R$ {custo_mo:.2f}", border=0, ln=True, align='R')
         pdf.cell(100, 10, txt="Custo Fixo (Rateio Un.):", border=0)
         pdf.cell(90, 10, txt=f"- R$ {custo_fixo_unitario:.2f}", border=0, ln=True, align='R')
-        
+
         pdf.ln(5)
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(100, 10, txt="CUSTO TOTAL:", border=0)
@@ -415,50 +425,106 @@ def main(page: ft.Page):
 
         nome_arquivo = f"Relatorio_{nome_prod.replace(' ', '_')}.pdf"
 
+        # --- DESKTOP: tenta FilePicker; fallback para tkinter ---
         if is_desktop:
-            pdf_bytes_pendente = pdf_bytes
-            file_picker.save_file(file_name=nome_arquivo, allowed_extensions=["pdf"])
-        else:
             try:
-                if not os.path.exists("assets"):
-                    os.makedirs("assets")
-                caminho_fisico = os.path.join("assets", nome_arquivo)
-                with open(caminho_fisico, "wb") as f:
-                    f.write(pdf_bytes)
-                
-                base_url = page.url.split("#")[0].split("?")[0].rstrip("/")
-                if base_url.startswith("ws://"):
-                    base_url = base_url.replace("ws://", "http://")
-                elif base_url.startswith("wss://"):
-                    base_url = base_url.replace("wss://", "https://")
-                
-                url_completo = f"{base_url}/assets/{nome_arquivo}"
-                # O parâmetro web_window_name="_blank" abre em nova aba sem substituir a página do app
-                page.launch_url(url_completo, web_window_name="_blank")
+                # define bytes pendentes e abre o diálogo do Flet
+                pdf_bytes_pendente = pdf_bytes
+                file_picker.save_file(file_name=nome_arquivo, allowed_extensions=["pdf"])
             except Exception as ex:
-                print("Erro ao gerar PDF Web:", ex)
+                print("FilePicker falhou, tentando fallback tkinter:", ex)
+                # fallback com tkinter para salvar imediatamente
+                try:
+                    import tkinter as tk
+                    from tkinter import filedialog
+                    root = tk.Tk()
+                    root.withdraw()
+                    path = filedialog.asksaveasfilename(defaultextension=".pdf", initialfile=nome_arquivo)
+                    if path:
+                        with open(path, "wb") as f:
+                            f.write(pdf_bytes)
+                        print("Arquivo salvo via tkinter:", path)
+                except Exception as ex2:
+                    print("Fallback tkinter falhou:", ex2)
+                    page.snack_bar = ft.SnackBar(ft.Text("Não foi possível salvar o PDF no desktop."), open=True)
+                    page.update()
+        else:
+            # --- WEB / ANDROID: tenta abrir data: URL base64 para forçar visualização/download ---
+            try:
+                b64 = base64.b64encode(pdf_bytes).decode()
+                url = f"data:application/pdf;base64,{b64}"
+                page.launch_url(url, web_window_name="_blank")
+            except Exception as ex:
+                print("Erro ao abrir PDF no web via data URL:", ex)
+                # tentativa alternativa: salvar em assets (se possível) e abrir
+                try:
+                    if not os.path.exists("assets"):
+                        os.makedirs("assets")
+                    caminho_fisico = os.path.join("assets", nome_arquivo)
+                    with open(caminho_fisico, "wb") as f:
+                        f.write(pdf_bytes)
+                    base_url = page.url.split("#")[0].split("?")[0].rstrip("/")
+                    if base_url.startswith("ws://"):
+                        base_url = base_url.replace("ws://", "http://")
+                    elif base_url.startswith("wss://"):
+                        base_url = base_url.replace("wss://", "https://")
+                    url_completo = f"{base_url}/assets/{nome_arquivo}"
+                    page.launch_url(url_completo, web_window_name="_blank")
+                except Exception as ex2:
+                    print("Erro ao gerar PDF Web (assets):", ex2)
+                    page.snack_bar = ft.SnackBar(ft.Text("Não foi possível gerar o PDF na web."), open=True)
+                    page.update()
 
     btn_pdf = ft.Container(
         content=ft.Row([ft.Text("EXPORTAR EM PDF", color="white", weight="bold")], alignment="center"),
         padding=15, bgcolor="#DC2626", border_radius=30, on_click=exportar_pdf
     )
 
+    carregar_padrao = None  # placeholder para evitar referência antes da definição
+    carregar_padrao = lambda: None  # será sobrescrito abaixo
+
+    # definindo carregar_padrao e salvar_padrao já foram definidos acima; reusamos as funções
+    # (já temos salvar_padrao definido). Recarregamos a função carregar_padrao real:
+    def carregar_padrao():
+        try:
+            dados = page.client_storage.get("padrao_art_util")
+            if dados:
+                txt_comissao.value = dados["plataforma"].get("comissao", "")
+                txt_promocao.value = dados["plataforma"].get("promocao", "")
+                txt_imposto.value = dados["plataforma"].get("imposto", "")
+                txt_valor_hora.value = dados["mo"].get("valor_hora", "")
+                txt_margem_lucro_desejada.value = dados["mo"].get("margem", "")
+                txt_volume_mensal.value = dados["mo"].get("volume", "1")
+
+                for m in dados["materiais"]:
+                    adicionar_item_mp(m["nome"], m["qtd"], m["valor"])
+
+                for f in dados["fixos"]:
+                    adicionar_item_fixo(f["nome"], f["valor"])
+                return
+        except Exception:
+            pass
+
+        txt_volume_mensal.value = "1"
+        adicionar_item_mp("", "", "")
+        adicionar_item_fixo("", "")
+
+    # ==========================================
+    # Inicialização e layout
+    # ==========================================
     carregar_padrao()
     calcular_tudo(None)
 
-    # ==========================================
-    # LAYOUT RESPONSIVO INTELIGENTE (COM SCROLL)
-    # ==========================================
     ultimo_modo = None
 
     def construir_ui(e=None):
         nonlocal ultimo_modo
         largura = page.width if page.width and page.width > 0 else 1200
         novo_modo = "desktop" if largura >= 850 else "celular"
-        
+
         if novo_modo == ultimo_modo and len(page.controls) > 0:
             return
-            
+
         ultimo_modo = novo_modo
         page.clean()
 
