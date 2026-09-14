@@ -1,6 +1,7 @@
 import flet as ft
 import os
 import unicodedata
+import base64
 
 def main(page: ft.Page):
     is_desktop = not page.web
@@ -357,7 +358,7 @@ def main(page: ft.Page):
         adicionar_item_fixo("", "")
 
     # ==========================================
-    # EXPORTAÇÃO PDF ROBUSTA (WEB E DESKTOP)
+    # EXPORTAÇÃO PDF ADAPTADA (WINDOWS vs WEB)
     # ==========================================
     def exportar_pdf(e):
         nonlocal pdf_bytes_pendente
@@ -419,18 +420,28 @@ def main(page: ft.Page):
             pdf_bytes_pendente = pdf_bytes
             file_picker.save_file(file_name=nome_arquivo, allowed_extensions=["pdf"])
         else:
+            # Na web, atualiza o card de resultado exibindo um botão nativo com a URL de dados
+            b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+            data_uri = f"data:application/pdf;base64,{b64_pdf}"
+            
+            card_resultado.content = ft.Column([
+                ft.Text("✓ PDF GERADO COM SUCESSO!", weight="bold", size=16, color="#16A34A", text_align="center"),
+                ft.Text(f"Arquivo: {nome_arquivo}", size=13, color=COR_TEXTO, text_align="center"),
+                ft.Container(height=10),
+                ft.ElevatedButton(
+                    text="BAIXAR ARQUIVO PDF",
+                    icon=ft.icons.DOWNLOAD,
+                    url=data_uri,
+                    url_target=ft.UrlTarget.BLANK,
+                    color="white",
+                    bgcolor="#16A34A",
+                    height=50
+                )
+            ], horizontal_alignment="center")
             try:
-                if not os.path.exists("assets"):
-                    os.makedirs("assets")
-                caminho_fisico = os.path.join("assets", nome_arquivo)
-                with open(caminho_fisico, "wb") as f:
-                    f.write(pdf_bytes)
-                
-                base_url = page.url.split("#")[0].rstrip("/")
-                url_completo = f"{base_url}/{nome_arquivo}"
-                page.launch_url(url_completo)
-            except Exception as ex:
-                print("Erro ao abrir PDF:", ex)
+                card_resultado.update()
+            except Exception:
+                pass
 
     btn_pdf = ft.Container(
         content=ft.Row([ft.Text("EXPORTAR EM PDF", color="white", weight="bold")], alignment="center"),
