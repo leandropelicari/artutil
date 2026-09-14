@@ -88,7 +88,6 @@ def main(page: ft.Page):
     resultado_texto = ft.Text("Preencha os dados para ver o resultado.", size=14, color=COR_TEXTO, text_align="center")
     card_resultado = ft.Container(content=resultado_texto, bgcolor="white", border_radius=12, padding=20)
     
-    # Container dinâmico para o botão de download na web
     container_btn_web = ft.Container()
 
     def calcular_tudo(e=None):
@@ -360,7 +359,7 @@ def main(page: ft.Page):
         adicionar_item_fixo("", "")
 
     # ==========================================
-    # EXPORTAÇÃO PDF (NATIVO WINDOWS vs BOTÃO WEB)
+    # EXPORTAÇÃO PDF CORRETA
     # ==========================================
     def exportar_pdf(e):
         nonlocal pdf_bytes_pendente
@@ -429,11 +428,19 @@ def main(page: ft.Page):
                 with open(caminho_fisico, "wb") as f:
                     f.write(pdf_bytes)
                 
-                # Em vez de abrir automaticamente, exibe um botão elegante na tela para o usuário clicar
+                base_url = page.url.split("#")[0].split("?")[0].rstrip("/")
+                if base_url.startswith("ws://"):
+                    base_url = base_url.replace("ws://", "http://")
+                elif base_url.startswith("wss://"):
+                    base_url = base_url.replace("wss://", "https://")
+                
+                # O pulo do gato: Flet serve a pasta assets na raiz do site (/), sem o prefixo /assets/
+                url_completo = f"{base_url}/{nome_arquivo}"
+                
                 container_btn_web.content = ft.ElevatedButton(
                     text="📥 CLIQUE PARA BAIXAR O PDF",
                     icon=ft.icons.DOWNLOAD,
-                    url=f"/assets/{nome_arquivo}",
+                    url=url_completo,
                     url_target="_blank",
                     color="white",
                     bgcolor="#16A34A",
