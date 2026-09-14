@@ -21,7 +21,7 @@ def main(page: ft.Page):
     nome_arquivo_pendente = "Relatorio.pdf"
 
     # --- CONFIGURAÇÃO DO FILE PICKER (NATIVO DO WINDOWS) ---
-    def salvar_arquivo_resultado(e: ft.FilePickerSaveEvent):
+    def on_file_picker_result(e: ft.FilePickerResultEvent):
         nonlocal pdf_bytes_pendente
         if e.path and pdf_bytes_pendente:
             try:
@@ -30,7 +30,7 @@ def main(page: ft.Page):
             except Exception:
                 pass
 
-    file_picker = ft.FilePicker(on_save=salvar_arquivo_resultado)
+    file_picker = ft.FilePicker(on_result=on_file_picker_result)
     page.overlay.append(file_picker)
 
     # --- FUNÇÕES DE INTERFACE SEGURAS ---
@@ -360,7 +360,7 @@ def main(page: ft.Page):
         adicionar_item_fixo("", "")
 
     # ==========================================
-    # EXPORTAÇÃO PDF ADAPTADA (WINDOWS vs WEB)
+    # EXPORTAÇÃO PDF ADAPTADA
     # ==========================================
     def exportar_pdf(e):
         nonlocal pdf_bytes_pendente, nome_arquivo_pendente
@@ -419,11 +419,9 @@ def main(page: ft.Page):
         nome_arquivo_pendente = f"Relatorio_{nome_prod.replace(' ', '_')}.pdf"
 
         if is_desktop:
-            # No Windows desktop, abre a janela "Salvar Como" nativa
             pdf_bytes_pendente = pdf_bytes
             file_picker.save_file(file_name=nome_arquivo_pendente, allowed_extensions=["pdf"])
         else:
-            # No navegador (Android / Render), usa Data URI
             b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
             data_uri = f"data:application/pdf;base64,{b64_pdf}"
             page.launch_url(data_uri)
