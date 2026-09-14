@@ -1,4 +1,6 @@
 import flet as ft
+import flet.fastapi as flet_fastapi
+from fastapi.responses import FileResponse
 import os
 import unicodedata
 import uuid
@@ -360,9 +362,7 @@ def main(page: ft.Page):
         adicionar_item_fixo("", "")
 
     # ==========================================
-    # EXPORTAÇÃO PDF
-    # Windows nativo: FilePicker
-    # Render/Flet Web: arquivo HTTP servido por assets
+    # EXPORTAÇÃO PDF (WINDOWS NATIVO + WEB/RENDER)
     # ==========================================
     def exportar_pdf(e):
         nonlocal pdf_bytes_pendente
@@ -382,15 +382,12 @@ def main(page: ft.Page):
 
         pdf = FPDF()
         pdf.add_page()
-        
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(190, 10, txt="ART UTIL - RELATORIO DE CUSTOS", ln=True, align='C')
-        
         pdf.set_font("Arial", 'B', 12)
         nome_prod = remover_acentos(txt_produto.value.upper() if txt_produto.value else "PRODUTO_NAO_INFORMADO")
         pdf.cell(190, 10, txt=f"PRODUTO: {nome_prod}", ln=True, align='C')
         pdf.ln(10)
-
         pdf.set_font("Arial", '', 12)
         pdf.cell(100, 10, txt="Preco de Venda (Bruto):", border=0)
         pdf.cell(90, 10, txt=f"R$ {bruto:.2f}", border=0, ln=True, align='R')
@@ -402,7 +399,6 @@ def main(page: ft.Page):
         pdf.cell(90, 10, txt=f"- R$ {custo_mo:.2f}", border=0, ln=True, align='R')
         pdf.cell(100, 10, txt="Custo Fixo (Rateio Un.):", border=0)
         pdf.cell(90, 10, txt=f"- R$ {custo_fixo_unitario:.2f}", border=0, ln=True, align='R')
-        
         pdf.ln(5)
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(100, 10, txt="CUSTO TOTAL:", border=0)
@@ -416,23 +412,18 @@ def main(page: ft.Page):
         if isinstance(pdf_output, str):
             pdf_bytes = pdf_output.encode('latin1')
         else:
-            pdf_bytes = pdf_output
+            pdf_bytes = bytes(pdf_output)
 
-        # Mantém o nome amigável, mas adiciona um ID para evitar colisões no Render.
         nome_base = nome_prod.replace(' ', '_') or 'PRODUTO_NAO_INFORMADO'
         nome_arquivo = f"Relatorio_{nome_base}_{uuid.uuid4().hex[:8]}.pdf"
 
         if is_desktop:
-            # Aplicativo Flet nativo no Windows: abre o seletor de salvar do Windows.
+            # Aplicativo nativo no Windows.
             pdf_bytes_pendente = pdf_bytes
-            file_picker.save_file(
-                file_name=nome_arquivo,
-                allowed_extensions=["pdf"]
-            )
+            file_picker.save_file(file_name=nome_arquivo, allowed_extensions=["pdf"])
         else:
-            # Render / navegador: não usa FilePicker nem data: URI.
-            # O PDF é colocado no diretório de assets, que o Flet Web já expõe por HTTP.
-            pasta_pdf = os.path.join("assets", "pdf")
+            # Render/Web: salva no servidor e disponibiliza pelo endpoint /download.
+            pasta_pdf = os.path.join("tmp_pdfs")
             os.makedirs(pasta_pdf, exist_ok=True)
             caminho_pdf = os.path.join(pasta_pdf, nome_arquivo)
 
@@ -440,8 +431,7 @@ def main(page: ft.Page):
                 with open(caminho_pdf, "wb") as f:
                     f.write(pdf_bytes)
 
-                # Link HTTP normal: funciona no Chrome/Edge/Windows e também no Android.
-                url_pdf = f"/assets/pdf/{nome_arquivo}"
+                url_pdf = f"/download/{nome_arquivo}"
 
                 container_btn_web.content = ft.ElevatedButton(
                     text="📥 CLIQUE PARA BAIXAR O PDF",
@@ -453,12 +443,8 @@ def main(page: ft.Page):
                     height=50
                 )
                 container_btn_web.update()
-            except Exception as erro:
-                container_btn_web.content = ft.Text(
-                    f"Erro ao gerar o arquivo PDF: {erro}",
-                    color="#DC2626"
-                )
-                container_btn_web.update()
+            except Exception as ex:
+                print(f"Erro ao salvar PDF: {ex}")
 
     btn_pdf = ft.Container(
         content=ft.Row([ft.Text("GERAR RELATÓRIO PDF", color="white", weight="bold")], alignment="center"),
@@ -561,6 +547,34 @@ def main(page: ft.Page):
     page.on_resize = construir_ui
     construir_ui()
 
-porta = int(os.environ.get("PORT", 8080))
-# IMPORTANTE: Se rodar no Render, usa WEB_BROWSER. Para rodar nativo no Windows como aplicativo de desktop, remova o argumento view=ft.AppView.WEB_BROWSER.
-ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=porta, host="0.0.0.0", assets_dir="assets")
+# ==========================================
+# SERVIDOR WEB (RENDER) + DOWNLOAD DO PDF
+# ==========================================
+app = flet_fastapi.FastAPI()
+
+@app.get("/download/{filename}")
+def download_pdf(filename: str):
+    nome_seguro = os.path.basename(filename)
+    caminho = os.path.join("tmp_pdfs", nome_seguro)
+
+    if not os.path.isfile(caminho):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="PDF não encontrado")
+
+    return FileResponse(
+        path=caminho,
+        filename=nome_seguro,
+        media_type="application/pdf"
+    )
+
+# Esta rota existe antes do Flet. Portanto /download/... não cai no SPA.
+app.mount("/", flet_fastapi.app(main, assets_dir="assets"))
+
+# Windows local: abre o app nativo.
+# Render: PORT existe e o Uvicorn sobe o servidor FastAPI.
+if __name__ == "__main__":
+    if os.environ.get("PORT"):
+        import uvicorn
+        uvicorn.run(app, host="0.0.0.0", port=int(os.environ["PORT"]))
+    else:
+        ft.app(target=main)
