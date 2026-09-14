@@ -1,7 +1,6 @@
 import flet as ft
 import os
 import unicodedata
-import base64
 
 def main(page: ft.Page):
     is_desktop = not page.web
@@ -17,9 +16,8 @@ def main(page: ft.Page):
     COR_TEXTO = "#44403C"
     
     pdf_bytes_pendente = None
-    nome_arquivo_pendente = "Relatorio.pdf"
 
-    # --- CONFIGURAÇÃO CORRETA DO FILE PICKER (DESKTOP) ---
+    # --- CONFIGURAÇÃO DO FILE PICKER (NATIVO DO WINDOWS) ---
     def on_file_picker_result(e: ft.FilePickerResultEvent):
         nonlocal pdf_bytes_pendente
         if e.path and pdf_bytes_pendente:
@@ -29,8 +27,7 @@ def main(page: ft.Page):
             except Exception:
                 pass
 
-    file_picker = ft.FilePicker()
-    file_picker.on_result = on_file_picker_result
+    file_picker = ft.FilePicker(on_result=on_file_picker_result)
     page.overlay.append(file_picker)
 
     # --- FUNÇÕES DE INTERFACE SEGURAS ---
@@ -360,10 +357,10 @@ def main(page: ft.Page):
         adicionar_item_fixo("", "")
 
     # ==========================================
-    # EXPORTAÇÃO PDF BLOB (ROBUSTA PARA WEB E DESKTOP)
+    # EXPORTAÇÃO PDF ROBUSTA (WEB E DESKTOP)
     # ==========================================
     def exportar_pdf(e):
-        nonlocal pdf_bytes_pendente, nome_arquivo_pendente
+        nonlocal pdf_bytes_pendente
         try:
             from fpdf import FPDF
         except ImportError:
@@ -416,32 +413,24 @@ def main(page: ft.Page):
         else:
             pdf_bytes = pdf_output
 
-        nome_arquivo_pendente = f"Relatorio_{nome_prod.replace(' ', '_')}.pdf"
+        nome_arquivo = f"Relatorio_{nome_prod.replace(' ', '_')}.pdf"
 
         if is_desktop:
             pdf_bytes_pendente = pdf_bytes
-            file_picker.save_file(file_name=nome_arquivo_pendente, allowed_extensions=["pdf"])
+            file_picker.save_file(file_name=nome_arquivo, allowed_extensions=["pdf"])
         else:
-            # Blob download via JS: evita bloqueios de navegadores de desktop/mobile em data URIs
-            b64_data = base64.b64encode(pdf_bytes).decode('utf-8')
-            js_code = f"""
-            const byteCharacters = atob("{b64_data}");
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {{
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }}
-            const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], {{ type: 'application/pdf' }});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = "{nome_arquivo_pendente}";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            """
-            page.run_javascript(js_code)
+            try:
+                if not os.path.exists("assets"):
+                    os.makedirs("assets")
+                caminho_fisico = os.path.join("assets", nome_arquivo)
+                with open(caminho_fisico, "wb") as f:
+                    f.write(pdf_bytes)
+                
+                base_url = page.url.split("#")[0].rstrip("/")
+                url_completo = f"{base_url}/{nome_arquivo}"
+                page.launch_url(url_completo)
+            except Exception as ex:
+                print("Erro ao abrir PDF:", ex)
 
     btn_pdf = ft.Container(
         content=ft.Row([ft.Text("EXPORTAR EM PDF", color="white", weight="bold")], alignment="center"),
