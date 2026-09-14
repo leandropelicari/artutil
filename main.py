@@ -1,6 +1,7 @@
 import flet as ft
 import os
 import unicodedata
+import base64
 
 def main(page: ft.Page):
     is_desktop = not page.web
@@ -88,6 +89,7 @@ def main(page: ft.Page):
     resultado_texto = ft.Text("Preencha os dados para ver o resultado.", size=14, color=COR_TEXTO, text_align="center")
     card_resultado = ft.Container(content=resultado_texto, bgcolor="white", border_radius=12, padding=20)
     
+    # Container dinâmico para o botão de download na web (evita recarregar o app)
     container_btn_web = ft.Container()
 
     def calcular_tudo(e=None):
@@ -359,7 +361,7 @@ def main(page: ft.Page):
         adicionar_item_fixo("", "")
 
     # ==========================================
-    # EXPORTAÇÃO PDF COM URL ABSOLUTA CORRETA
+    # EXPORTAÇÃO PDF COM DATA URI SEGURA (SEM REDIRECIONAR O APP)
     # ==========================================
     def exportar_pdf(e):
         nonlocal pdf_bytes_pendente
@@ -421,36 +423,21 @@ def main(page: ft.Page):
             pdf_bytes_pendente = pdf_bytes
             file_picker.save_file(file_name=nome_arquivo, allowed_extensions=["pdf"])
         else:
-            try:
-                if not os.path.exists("assets"):
-                    os.makedirs("assets")
-                caminho_fisico = os.path.join("assets", nome_arquivo)
-                with open(caminho_fisico, "wb") as f:
-                    f.write(pdf_bytes)
-                
-                # Monta a URL ABSOLUTA garantindo que o Flet SPA não intercepte como rota interna
-                raw_url = page.url.split("#")[0].split("?")[0].rstrip("/")
-                if raw_url.startswith("ws://"):
-                    base_url = raw_url.replace("ws://", "http://")
-                elif raw_url.startswith("wss://"):
-                    base_url = raw_url.replace("wss://", "https://")
-                else:
-                    base_url = raw_url
-                
-                url_absoluto = f"{base_url}/{nome_arquivo}"
-                
-                container_btn_web.content = ft.ElevatedButton(
-                    text="📥 CLIQUE PARA BAIXAR O PDF",
-                    icon=ft.icons.DOWNLOAD,
-                    url=url_absoluto,
-                    url_target="_blank",
-                    color="white",
-                    bgcolor="#16A34A",
-                    height=50
-                )
-                container_btn_web.update()
-            except Exception as ex:
-                print("Erro ao salvar PDF Web:", ex)
+            # Na Web/Celular: Cria um link encapsulado em Data URI pura (Base64)
+            # Isso impede qualquer colapso do roteador SPA do Flet, pois o arquivo está embutido no link
+            b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+            data_uri = f"data:application/pdf;base64,{b64_pdf}"
+            
+            container_btn_web.content = ft.ElevatedButton(
+                text="📥 CLIQUE PARA BAIXAR O PDF",
+                icon=ft.icons.DOWNLOAD,
+                url=data_uri,
+                url_target="_blank",
+                color="white",
+                bgcolor="#16A34A",
+                height=50
+            )
+            container_btn_web.update()
 
     btn_pdf = ft.Container(
         content=ft.Row([ft.Text("GERAR RELATÓRIO PDF", color="white", weight="bold")], alignment="center"),
