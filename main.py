@@ -116,7 +116,7 @@ def main(page: ft.Page):
             pass
 
     # ==========================================
-    # CAMPOS DE ENTRADA (COM ATUALIZAÇÃO AO VIVO)
+    # CAMPOS DE ENTRADA
     # ==========================================
     txt_cliente = criar_campo_texto("Nome do cliente", on_change=calcular_tudo)
     txt_produto = criar_campo_texto("Nome do produto", on_change=calcular_tudo)
@@ -412,7 +412,7 @@ def main(page: ft.Page):
     calcular_tudo(None)
 
     # ==========================================
-    # LAYOUT RESPONSIVO INTELIGENTE (LARGURA DA TELA)
+    # LAYOUT RESPONSIVO INTELIGENTE
     # ==========================================
     ultimo_modo = None
 
@@ -428,7 +428,6 @@ def main(page: ft.Page):
         page.clean()
 
         if novo_modo == "desktop":
-            # --- LAYOUT COMPUTADOR / WINDOWS (LADO A LADO) ---
             coluna_esquerda = ft.Column([
                 ft.Text("1. Dados da Venda e Plataforma", size=16, weight="bold", color=COR_PRETA),
                 bloco_plataforma,
@@ -439,25 +438,28 @@ def main(page: ft.Page):
                 ft.Text("3. Mão de Obra e Custos Fixos", size=16, weight="bold", color=COR_PRETA),
                 bloco_mo_fixos,
                 ft.Container(height=30)
-            ], expand=6, scroll="auto", spacing=15, padding=25)
+            ], spacing=15)
+
+            container_esquerda = ft.Container(content=coluna_esquerda, expand=6, padding=25)
 
             coluna_direita = ft.Column([
                 ft.Text("Painel de Resultados (Ao Vivo)", size=18, weight="bold", color=COR_PRETA),
                 card_resultado,
                 ft.Container(height=10),
                 btn_pdf
-            ], expand=4, scroll="auto", spacing=15, padding=25)
+            ], spacing=15)
+
+            container_direita = ft.Container(content=coluna_direita, expand=4, padding=25)
 
             corpo_principal = ft.Row([
-                coluna_esquerda,
+                container_esquerda,
                 ft.VerticalDivider(width=1, color=COR_BORDA),
-                coluna_direita
-            ], expand=True, spacing=0)
+                container_direita
+            ], expand=True, spacing=0, alignment="start")
 
             page.add(header, ft.Divider(height=1, color=COR_BORDA), corpo_principal)
 
         else:
-            # --- LAYOUT CELULAR / TELA ESTREITA (ABAS) ---
             aba_plataforma_cel = ft.Column([ft.Text("Dados da Venda", size=16, weight="bold", color=COR_PRETA), bloco_plataforma], scroll="auto", spacing=15)
             aba_materia_prima_cel = ft.Column([ft.Text("Matéria Prima", size=16, weight="bold", color=COR_PRETA), bloco_materia_prima], scroll="auto", spacing=15)
             aba_mo_fixos_cel = ft.Column([ft.Text("Mão de Obra e Custos", size=16, weight="bold", color=COR_PRETA), bloco_mo_fixos], scroll="auto", spacing=15)
