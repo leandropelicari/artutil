@@ -4,6 +4,7 @@ import unicodedata
 import base64
 
 def main(page: ft.Page):
+    is_desktop = not page.web
     page.title = "Calculadora - Art Útil"
     page.theme_mode = "light"
     page.bgcolor = "#F9F6F0"
@@ -15,6 +16,23 @@ def main(page: ft.Page):
     COR_BORDA = "#D4C4B7"
     COR_TEXTO = "#44403C"
     
+    # Variável global temporária para salvar o PDF no desktop
+    pdf_bytes_pendente = None
+    nome_arquivo_pendente = "Relatorio.pdf"
+
+    # --- CONFIGURAÇÃO DO FILE PICKER (NATIVO DO WINDOWS) ---
+    def salvar_arquivo_resultado(e: ft.FilePickerSaveEvent):
+        nonlocal pdf_bytes_pendente
+        if e.path and pdf_bytes_pendente:
+            try:
+                with open(e.path, "wb") as f:
+                    f.write(pdf_bytes_pendente)
+            except Exception:
+                pass
+
+    file_picker = ft.FilePicker(on_save=salvar_arquivo_resultado)
+    page.overlay.append(file_picker)
+
     # --- FUNÇÕES DE INTERFACE SEGURAS ---
     def criar_campo_texto(label, valor="", on_change=None):
         return ft.TextField(
@@ -342,9 +360,10 @@ def main(page: ft.Page):
         adicionar_item_fixo("", "")
 
     # ==========================================
-    # EXPORTAÇÃO PDF CORRIGIDA
+    # EXPORTAÇÃO PDF ADAPTADA (WINDOWS vs WEB)
     # ==========================================
     def exportar_pdf(e):
+        nonlocal pdf_bytes_pendente, nome_arquivo_pendente
         try:
             from fpdf import FPDF
         except ImportError:
@@ -387,7 +406,7 @@ def main(page: ft.Page):
         pdf.cell(100, 10, txt="CUSTO TOTAL:", border=0)
         pdf.cell(90, 10, txt=f"R$ {custo_total:.2f}", border=0, ln=True, align='R')
         pdf.ln(5)
-        pdf.set_font("Arial", 'B', 12)  # Corrigido de 'L' para 'B'
+        pdf.set_font("Arial", 'B', 12)
         pdf.cell(100, 10, txt="LUCRO LIQUIDO:", border=0)
         pdf.cell(90, 10, txt=f"R$ {lucro_unitario:.2f}", border=0, ln=True, align='R')
 
@@ -396,10 +415,18 @@ def main(page: ft.Page):
             pdf_bytes = pdf_output.encode('latin1')
         else:
             pdf_bytes = pdf_output
-            
-        b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-        data_uri = f"data:application/pdf;base64,{b64_pdf}"
-        page.launch_url(data_uri)
+
+        nome_arquivo_pendente = f"Relatorio_{nome_prod.replace(' ', '_')}.pdf"
+
+        if is_desktop:
+            # No Windows desktop, abre a janela "Salvar Como" nativa
+            pdf_bytes_pendente = pdf_bytes
+            file_picker.save_file(file_name=nome_arquivo_pendente, allowed_extensions=["pdf"])
+        else:
+            # No navegador (Android / Render), usa Data URI
+            b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+            data_uri = f"data:application/pdf;base64,{b64_pdf}"
+            page.launch_url(data_uri)
 
     btn_pdf = ft.Container(
         content=ft.Row([ft.Text("EXPORTAR EM PDF", color="white", weight="bold")], alignment="center"),
