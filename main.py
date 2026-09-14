@@ -10,7 +10,7 @@ def main(page: ft.Page):
     page.bgcolor = "#F9F6F0"
     page.padding = 0
 
-    # --- PALETA DE CORES DA ART ÚTIL ---
+    # Paleta de cores
     COR_PRETA = "#171717"
     COR_PINUS = "#EADDCE"
     COR_BORDA = "#D4C4B7"
@@ -18,7 +18,7 @@ def main(page: ft.Page):
 
     pdf_bytes_pendente = None
 
-    # --- CONFIGURAÇÃO DO FILE PICKER (NATIVO DO WINDOWS) ---
+    # FilePicker (desktop)
     def on_file_picker_result(e: ft.FilePickerResultEvent):
         nonlocal pdf_bytes_pendente
         if not e.path:
@@ -36,7 +36,7 @@ def main(page: ft.Page):
     file_picker = ft.FilePicker(on_result=on_file_picker_result)
     page.overlay.append(file_picker)
 
-    # --- FUNÇÕES DE INTERFACE SEGURAS ---
+    # Helpers UI
     def criar_campo_texto(label, valor="", on_change=None):
         return ft.TextField(
             label=label,
@@ -76,7 +76,7 @@ def main(page: ft.Page):
     def remover_acentos(texto):
         return ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
 
-    # --- HEADER (LOGOTIPO ART ÚTIL) ---
+    # Header
     header = ft.Container(
         content=ft.Row([
             ft.Column([
@@ -89,9 +89,7 @@ def main(page: ft.Page):
         padding=20
     )
 
-    # ==========================================
-    # LÓGICA DE CÁLCULO E RESULTADOS (AO VIVO)
-    # ==========================================
+    # Resultado
     resultado_texto = ft.Text("Preencha os dados para ver o resultado.", size=14, color=COR_TEXTO, text_align="center")
     card_resultado = ft.Container(content=resultado_texto, bgcolor="white", border_radius=12, padding=20)
 
@@ -138,9 +136,7 @@ def main(page: ft.Page):
         except Exception:
             pass
 
-    # ==========================================
-    # CAMPOS DE ENTRADA
-    # ==========================================
+    # Campos
     txt_cliente = criar_campo_texto("Nome do cliente", on_change=calcular_tudo)
     txt_produto = criar_campo_texto("Nome do produto", on_change=calcular_tudo)
 
@@ -156,7 +152,7 @@ def main(page: ft.Page):
         txt_preco_bruto, txt_comissao, txt_impulsionamento, txt_promocao, txt_imposto
     ], spacing=15)
 
-    # --- MATÉRIA PRIMA ---
+    # Matéria prima
     lista_materiais_padrao = [
         "Tábua 25x300x2", "Tábua 30x300x2", "Parafuso 1/4\"x2\"",
         "Parafuso 3,5 x 30", "Parafuso 3,5 x 40", "Pino tipo F",
@@ -235,7 +231,7 @@ def main(page: ft.Page):
         btn_add_mp
     ], spacing=15)
 
-    # --- MÃO DE OBRA E FIXOS ---
+    # Mão de obra e fixos
     txt_tempo = criar_campo_numero("Tempo Estimado (Horas)", valor="", on_change=calcular_tudo)
     txt_valor_hora = criar_campo_numero("Valor por Hora", prefixo="R$ ", valor="", on_change=calcular_tudo)
     txt_margem_lucro_desejada = criar_campo_numero("Margem Lucro Desejada", sufixo=" %", valor="", on_change=calcular_tudo)
@@ -317,9 +313,7 @@ def main(page: ft.Page):
         btn_add_fixo
     ], spacing=15)
 
-    # ==========================================
-    # SALVAMENTO CLIENT_STORAGE
-    # ==========================================
+    # Salvamento client_storage
     def salvar_padrao(e):
         dados_salvar = {
             "plataforma": {
@@ -364,9 +358,7 @@ def main(page: ft.Page):
         adicionar_item_mp("", "", "")
         adicionar_item_fixo("", "")
 
-    # ==========================================
-    # EXPORTAÇÃO PDF CORRETA (RENDER vs WINDOWS)
-    # ==========================================
+    # Exportar PDF (desktop: FilePicker; web: data URL)
     def exportar_pdf(e):
         nonlocal pdf_bytes_pendente
         try:
@@ -425,38 +417,21 @@ def main(page: ft.Page):
 
         nome_arquivo = f"Relatorio_{nome_prod.replace(' ', '_')}.pdf"
 
-        # --- DESKTOP: tenta FilePicker; fallback para tkinter ---
         if is_desktop:
             try:
-                # define bytes pendentes e abre o diálogo do Flet
                 pdf_bytes_pendente = pdf_bytes
                 file_picker.save_file(file_name=nome_arquivo, allowed_extensions=["pdf"])
             except Exception as ex:
-                print("FilePicker falhou, tentando fallback tkinter:", ex)
-                # fallback com tkinter para salvar imediatamente
-                try:
-                    import tkinter as tk
-                    from tkinter import filedialog
-                    root = tk.Tk()
-                    root.withdraw()
-                    path = filedialog.asksaveasfilename(defaultextension=".pdf", initialfile=nome_arquivo)
-                    if path:
-                        with open(path, "wb") as f:
-                            f.write(pdf_bytes)
-                        print("Arquivo salvo via tkinter:", path)
-                except Exception as ex2:
-                    print("Fallback tkinter falhou:", ex2)
-                    page.snack_bar = ft.SnackBar(ft.Text("Não foi possível salvar o PDF no desktop."), open=True)
-                    page.update()
+                print("Erro ao abrir FilePicker:", ex)
+                page.snack_bar = ft.SnackBar(ft.Text("Não foi possível abrir o diálogo de salvamento."), open=True)
+                page.update()
         else:
-            # --- WEB / ANDROID: tenta abrir data: URL base64 para forçar visualização/download ---
             try:
                 b64 = base64.b64encode(pdf_bytes).decode()
                 url = f"data:application/pdf;base64,{b64}"
                 page.launch_url(url, web_window_name="_blank")
             except Exception as ex:
                 print("Erro ao abrir PDF no web via data URL:", ex)
-                # tentativa alternativa: salvar em assets (se possível) e abrir
                 try:
                     if not os.path.exists("assets"):
                         os.makedirs("assets")
@@ -480,38 +455,6 @@ def main(page: ft.Page):
         padding=15, bgcolor="#DC2626", border_radius=30, on_click=exportar_pdf
     )
 
-    carregar_padrao = None  # placeholder para evitar referência antes da definição
-    carregar_padrao = lambda: None  # será sobrescrito abaixo
-
-    # definindo carregar_padrao e salvar_padrao já foram definidos acima; reusamos as funções
-    # (já temos salvar_padrao definido). Recarregamos a função carregar_padrao real:
-    def carregar_padrao():
-        try:
-            dados = page.client_storage.get("padrao_art_util")
-            if dados:
-                txt_comissao.value = dados["plataforma"].get("comissao", "")
-                txt_promocao.value = dados["plataforma"].get("promocao", "")
-                txt_imposto.value = dados["plataforma"].get("imposto", "")
-                txt_valor_hora.value = dados["mo"].get("valor_hora", "")
-                txt_margem_lucro_desejada.value = dados["mo"].get("margem", "")
-                txt_volume_mensal.value = dados["mo"].get("volume", "1")
-
-                for m in dados["materiais"]:
-                    adicionar_item_mp(m["nome"], m["qtd"], m["valor"])
-
-                for f in dados["fixos"]:
-                    adicionar_item_fixo(f["nome"], f["valor"])
-                return
-        except Exception:
-            pass
-
-        txt_volume_mensal.value = "1"
-        adicionar_item_mp("", "", "")
-        adicionar_item_fixo("", "")
-
-    # ==========================================
-    # Inicialização e layout
-    # ==========================================
     carregar_padrao()
     calcular_tudo(None)
 
