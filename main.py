@@ -4,27 +4,7 @@ import unicodedata
 import base64
 
 def main(page: ft.Page):
-    # Detecta se está rodando como app de desktop nativo no Windows/PC
-    is_desktop = not page.web
-    
     page.title = "Calculadora - Art Útil"
-    
-    # Define o tamanho da janela de acordo com o dispositivo
-    if is_desktop:
-        try:
-            page.window.width = 1150
-            page.window.height = 750
-        except AttributeError:
-            page.window_width = 1150
-            page.window_height = 750
-    else:
-        try:
-            page.window.width = 420
-            page.window.height = 850
-        except AttributeError:
-            page.window_width = 420
-            page.window_height = 850
-        
     page.theme_mode = "light"
     page.bgcolor = "#F9F6F0"
     page.padding = 0
@@ -36,10 +16,11 @@ def main(page: ft.Page):
     COR_TEXTO = "#44403C"
     
     # --- FUNÇÕES DE INTERFACE SEGURAS ---
-    def criar_campo_texto(label, valor=""):
+    def criar_campo_texto(label, valor="", on_change=None):
         return ft.TextField(
             label=label,
             value=valor,
+            on_change=on_change,
             border_radius=12,
             border_color=COR_BORDA,
             focused_border_color=COR_PRETA,
@@ -47,12 +28,13 @@ def main(page: ft.Page):
             label_style=ft.TextStyle(color=COR_TEXTO)
         )
 
-    def criar_campo_numero(label, prefixo="", sufixo="", valor=""):
+    def criar_campo_numero(label, prefixo="", sufixo="", valor="", on_change=None):
         return ft.TextField(
             label=label, 
             prefix=ft.Text(prefixo, color="#A8A29E") if prefixo else None, 
             suffix=ft.Text(sufixo, color="#A8A29E") if sufixo else None, 
             value=valor, 
+            on_change=on_change,
             keyboard_type="number",
             text_align="right",
             border_radius=12,
@@ -76,32 +58,78 @@ def main(page: ft.Page):
     header = ft.Container(
         content=ft.Row([
             ft.Column([
-                ft.Text("/\\", size=28 if is_desktop else 32, weight="bold", color=COR_PRETA),
-                ft.Text("ART ÚTIL", size=30 if is_desktop else 34, weight="w900", color=COR_PRETA),
-                ft.Text("MÓVEIS DE PINUS", size=12 if is_desktop else 14, weight="bold", color=COR_PRETA)
+                ft.Text("/\\", size=28, weight="bold", color=COR_PRETA),
+                ft.Text("ART ÚTIL", size=32, weight="w900", color=COR_PRETA),
+                ft.Text("MÓVEIS DE PINUS", size=12, weight="bold", color=COR_PRETA)
             ], spacing=0, horizontal_alignment="center")
         ], alignment="center"),
         bgcolor=COR_PINUS,
-        padding=20 if is_desktop else 25
+        padding=20
     )
 
     # ==========================================
-    # SEÇÕES DE ENTRADA (Venda, Materiais, Custos)
+    # LÓGICA DE CÁLCULO E RESULTADOS (AO VIVO)
     # ==========================================
-    txt_cliente = criar_campo_texto("Nome do cliente")
-    txt_produto = criar_campo_texto("Nome do produto")
+    resultado_texto = ft.Text("Preencha os dados para ver o resultado.", size=14, color=COR_TEXTO, text_align="center")
+    card_resultado = ft.Container(content=resultado_texto, bgcolor="white", border_radius=12, padding=20)
+
+    def calcular_tudo(e=None):
+        salvar_padrao(None)
+        bruto = extrair_numero(txt_preco_bruto)
+        tx_comissao = extrair_numero(txt_comissao) / 100
+        tx_promocao = extrair_numero(txt_promocao) / 100
+        tx_imposto = extrair_numero(txt_imposto) / 100
+        impulsionamento = extrair_numero(txt_impulsionamento)
+
+        descontos = (bruto * (tx_comissao + tx_promocao + tx_imposto)) + impulsionamento
+        custo_mp = sum(extrair_numero(item["ctrl_qtd"]) * extrair_numero(item["ctrl_valor"]) for item in campos_mp)
+        custo_mo = extrair_numero(txt_tempo) * extrair_numero(txt_valor_hora)
+
+        volume = extrair_numero(txt_volume_mensal)
+        if volume == 0: volume = 1 
+        custo_fixo_unitario = sum(extrair_numero(item["ctrl_valor"]) for item in campos_fixos) / volume
+
+        custo_total = custo_mp + custo_mo + custo_fixo_unitario + descontos
+        lucro_unitario = bruto - custo_total
+        margem_real = (lucro_unitario / bruto * 100) if bruto > 0 else 0
+
+        cor_lucro = "#16A34A" if lucro_unitario >= 0 else "#DC2626"
+
+        card_resultado.content = ft.Column([
+            ft.Text(f"PRODUTO: {txt_produto.value.upper() if txt_produto.value else 'NÃO INFORMADO'}", weight="bold", size=16, color=COR_PRETA),
+            ft.Divider(color=COR_BORDA),
+            ft.Row([ft.Text("Preço de Venda:", color=COR_TEXTO), ft.Text(f"R$ {bruto:.2f}", weight="bold")], alignment="spaceBetween"),
+            ft.Row([ft.Text("Taxas/Descontos:", color=COR_TEXTO), ft.Text(f"- R$ {descontos:.2f}", color="#DC2626")], alignment="spaceBetween"),
+            ft.Row([ft.Text("Matéria Prima:", color=COR_TEXTO), ft.Text(f"- R$ {custo_mp:.2f}", color="#DC2626")], alignment="spaceBetween"),
+            ft.Row([ft.Text("Mão de Obra:", color=COR_TEXTO), ft.Text(f"- R$ {custo_mo:.2f}", color="#DC2626")], alignment="spaceBetween"),
+            ft.Row([ft.Text("Custo Fixo (Un.):", color=COR_TEXTO), ft.Text(f"- R$ {custo_fixo_unitario:.2f}", color="#DC2626")], alignment="spaceBetween"),
+            ft.Divider(color=COR_BORDA),
+            ft.Row([ft.Text("CUSTO TOTAL:", weight="bold", color=COR_PRETA), ft.Text(f"R$ {custo_total:.2f}", weight="bold", color=COR_PRETA)], alignment="spaceBetween"),
+            ft.Container(height=10),
+            ft.Row([ft.Text("LUCRO LÍQUIDO", size=18, weight="bold", color=cor_lucro), ft.Text(f"R$ {lucro_unitario:.2f}", size=18, weight="bold", color=cor_lucro)], alignment="spaceBetween"),
+            ft.Row([ft.Text("MARGEM", size=14, color=cor_lucro), ft.Text(f"{margem_real:.1f}%", size=14, weight="bold", color=cor_lucro)], alignment="spaceBetween"),
+        ])
+        
+        try:
+            card_resultado.update()
+        except Exception:
+            pass
+
+    # ==========================================
+    # CAMPOS DE ENTRADA (COM ATUALIZAÇÃO AO VIVO)
+    # ==========================================
+    txt_cliente = criar_campo_texto("Nome do cliente", on_change=calcular_tudo)
+    txt_produto = criar_campo_texto("Nome do produto", on_change=calcular_tudo)
     
-    txt_preco_bruto = criar_campo_numero("Preço produto (Bruto)", prefixo="R$ ")
-    txt_comissao = criar_campo_numero("Comissão plataforma", sufixo=" %")
-    txt_impulsionamento = criar_campo_numero("Impulsionamento", prefixo="R$ ")
-    txt_promocao = criar_campo_numero("Promoção de campanha", sufixo=" %")
-    txt_imposto = criar_campo_numero("Imposto", sufixo=" %")
+    txt_preco_bruto = criar_campo_numero("Preço produto (Bruto)", prefixo="R$ ", on_change=calcular_tudo)
+    txt_comissao = criar_campo_numero("Comissão plataforma", sufixo=" %", on_change=calcular_tudo)
+    txt_impulsionamento = criar_campo_numero("Impulsionamento", prefixo="R$ ", on_change=calcular_tudo)
+    txt_promocao = criar_campo_numero("Promoção de campanha", sufixo=" %", on_change=calcular_tudo)
+    txt_imposto = criar_campo_numero("Imposto", sufixo=" %", on_change=calcular_tudo)
 
     bloco_plataforma = ft.Column([
-        ft.Text("Dados da Venda e Plataforma", size=16, weight="bold", color=COR_PRETA),
         txt_cliente, txt_produto,
         ft.Container(height=5),
-        ft.Text("Taxas e Descontos (%)", size=16, weight="bold", color=COR_PRETA),
         txt_preco_bruto, txt_comissao, txt_impulsionamento, txt_promocao, txt_imposto
     ], spacing=15)
 
@@ -117,9 +145,9 @@ def main(page: ft.Page):
     coluna_mp_itens = ft.Column(spacing=15)
 
     def adicionar_item_mp(nome="", qtd="", valor=""):
-        txt_qtd = criar_campo_numero("Qtd", valor=qtd)
+        txt_qtd = criar_campo_numero("Qtd", valor=qtd, on_change=calcular_tudo)
         txt_qtd.expand = True
-        txt_valor = criar_campo_numero("R$ Un.", valor=valor)
+        txt_valor = criar_campo_numero("R$ Un.", valor=valor, on_change=calcular_tudo)
         txt_valor.expand = True
         
         opcoes_dd = [ft.dropdown.Option(m) for m in lista_materiais_padrao]
@@ -128,19 +156,18 @@ def main(page: ft.Page):
             label="Selecione o Material",
             options=opcoes_dd,
             value=nome if nome in lista_materiais_padrao else None,
+            on_change=calcular_tudo,
             border_radius=12,
             border_color=COR_BORDA,
             focused_border_color=COR_PRETA,
             content_padding=15,
             label_style=ft.TextStyle(color=COR_TEXTO)
         )
-            
-        def get_nome_atual():
-            return dd_nome.value if dd_nome.value else ""
 
         def remover_item(e_rem):
             coluna_mp_itens.controls.remove(cartao)
             campos_mp.remove(ref_dict)
+            calcular_tudo()
             page.update()
 
         btn_remover = ft.Container(
@@ -162,10 +189,14 @@ def main(page: ft.Page):
             border_radius=12
         )
         
-        ref_dict = {"get_nome": get_nome_atual, "ctrl_qtd": txt_qtd, "ctrl_valor": txt_valor}
+        ref_dict = {"get_nome": lambda: dd_nome.value or "", "ctrl_qtd": txt_qtd, "ctrl_valor": txt_valor}
         campos_mp.append(ref_dict)
         coluna_mp_itens.controls.append(cartao)
-        page.update()
+        calcular_tudo()
+        try:
+            page.update()
+        except Exception:
+            pass
 
     btn_add_mp = ft.Container(
         content=ft.Row([ft.Text("+ Adicionar Material", color=COR_PRETA, weight="bold")], alignment="center"),
@@ -176,16 +207,16 @@ def main(page: ft.Page):
     )
     
     bloco_materia_prima = ft.Column([
-        ft.Text("Itens do Produto (Matéria Prima)", size=16, weight="bold", color=COR_PRETA),
         coluna_mp_itens,
+        ft.Container(height=5),
         btn_add_mp
     ], spacing=15)
 
     # --- MÃO DE OBRA E FIXOS ---
-    txt_tempo = criar_campo_numero("Tempo Estimado (Horas)", valor="")
-    txt_valor_hora = criar_campo_numero("Valor por Hora", prefixo="R$ ", valor="")
-    txt_margem_lucro_desejada = criar_campo_numero("Margem Lucro Desejada", sufixo=" %", valor="")
-    txt_volume_mensal = criar_campo_numero("Qtd Estimada de Clientes/Mês", valor="1")
+    txt_tempo = criar_campo_numero("Tempo Estimado (Horas)", valor="", on_change=calcular_tudo)
+    txt_valor_hora = criar_campo_numero("Valor por Hora", prefixo="R$ ", valor="", on_change=calcular_tudo)
+    txt_margem_lucro_desejada = criar_campo_numero("Margem Lucro Desejada", sufixo=" %", valor="", on_change=calcular_tudo)
+    txt_volume_mensal = criar_campo_numero("Qtd Estimada de Clientes/Mês", valor="1", on_change=calcular_tudo)
 
     lista_custos_padrao = [
         "Contador", "Aluguel", "Luz", "Água", "IPTU", 
@@ -196,26 +227,25 @@ def main(page: ft.Page):
     coluna_fixos_itens = ft.Column(spacing=15)
 
     def adicionar_item_fixo(nome="", valor=""):
-        txt_valor = criar_campo_numero("Valor Mensal R$", valor=valor)
+        txt_valor = criar_campo_numero("Valor Mensal R$", valor=valor, on_change=calcular_tudo)
         opcoes_dd_custo = [ft.dropdown.Option(c) for c in lista_custos_padrao]
         
         dd_nome = ft.Dropdown(
             label="Selecione o Custo",
             options=opcoes_dd_custo,
             value=nome if nome in lista_custos_padrao else None,
+            on_change=calcular_tudo,
             border_radius=12,
             border_color=COR_BORDA,
             focused_border_color=COR_PRETA,
             content_padding=15,
             label_style=ft.TextStyle(color=COR_TEXTO)
         )
-            
-        def get_nome_atual():
-            return dd_nome.value if dd_nome.value else ""
 
         def remover_item(e_rem):
             coluna_fixos_itens.controls.remove(cartao)
             campos_fixos.remove(ref_dict)
+            calcular_tudo()
             page.update()
 
         btn_remover = ft.Container(
@@ -237,10 +267,14 @@ def main(page: ft.Page):
             border_radius=12
         )
         
-        ref_dict = {"get_nome": get_nome_atual, "ctrl_valor": txt_valor}
+        ref_dict = {"get_nome": lambda: dd_nome.value or "", "ctrl_valor": txt_valor}
         campos_fixos.append(ref_dict)
         coluna_fixos_itens.controls.append(cartao)
-        page.update()
+        calcular_tudo()
+        try:
+            page.update()
+        except Exception:
+            pass
 
     btn_add_fixo = ft.Container(
         content=ft.Row([ft.Text("+ Adicionar Custo", color=COR_PRETA, weight="bold")], alignment="center"),
@@ -251,17 +285,17 @@ def main(page: ft.Page):
     )
 
     bloco_mo_fixos = ft.Column([
-        ft.Text("Mão de Obra e Margem", size=16, weight="bold", color=COR_PRETA),
         txt_tempo, txt_valor_hora, txt_margem_lucro_desejada,
         ft.Divider(color=COR_BORDA),
         ft.Text("Custos Fixos (Rateio)", size=16, weight="bold", color=COR_PRETA),
         txt_volume_mensal,
         coluna_fixos_itens,
+        ft.Container(height=5),
         btn_add_fixo
     ], spacing=15)
 
     # ==========================================
-    # LÓGICA DE SALVAMENTO CLIENT_STORAGE
+    # SALVAMENTO CLIENT_STORAGE
     # ==========================================
     def salvar_padrao(e):
         dados_salvar = {
@@ -278,7 +312,6 @@ def main(page: ft.Page):
             "materiais": [{"nome": m["get_nome"](), "qtd": m["ctrl_qtd"].value, "valor": m["ctrl_valor"].value} for m in campos_mp],
             "fixos": [{"nome": f["get_nome"](), "valor": f["ctrl_valor"].value} for f in campos_fixos]
         }
-        
         try:
             page.client_storage.set("padrao_art_util", dados_salvar)
         except Exception:
@@ -309,54 +342,8 @@ def main(page: ft.Page):
         adicionar_item_fixo("", "")
 
     # ==========================================
-    # CÁLCULO E RESULTADOS / PDF
+    # EXPORTAÇÃO PDF
     # ==========================================
-    resultado_texto = ft.Text("Preencha os dados para ver o resultado.", size=14, color=COR_TEXTO, text_align="center")
-    card_resultado = ft.Container(content=resultado_texto, bgcolor="white", border_radius=12, padding=20)
-
-    def calcular_tudo(e=None):
-        salvar_padrao(None)
-        bruto = extrair_numero(txt_preco_bruto)
-        tx_comissao = extrair_numero(txt_comissao) / 100
-        tx_promocao = extrair_numero(txt_promocao) / 100
-        tx_imposto = extrair_numero(txt_imposto) / 100
-        impulsionamento = extrair_numero(txt_impulsionamento)
-
-        descontos = (bruto * (tx_comissao + tx_promocao + tx_imposto)) + impulsionamento
-        custo_mp = sum(extrair_numero(item["ctrl_qtd"]) * extrair_numero(item["ctrl_valor"]) for item in campos_mp)
-        custo_mo = extrair_numero(txt_tempo) * extrair_numero(txt_valor_hora)
-
-        volume = extrair_numero(txt_volume_mensal)
-        if volume == 0: volume = 1 
-        custo_fixo_unitario = sum(extrair_numero(item["ctrl_valor"]) for item in campos_fixos) / volume
-
-        custo_total = custo_mp + custo_mo + custo_fixo_unitario + descontos
-        lucro_unitario = bruto - custo_total
-        margem_real = (lucro_unitario / bruto * 100) if bruto > 0 else 0
-
-        cor_lucro = "#16A34A" if lucro_unitario >= 0 else "#DC2626"
-
-        card_resultado.content = ft.Column([
-            ft.Text(f"PRODUTO: {txt_produto.value.upper() or 'NÃO INFORMADO'}", weight="bold", size=16, color=COR_PRETA),
-            ft.Divider(color=COR_BORDA),
-            ft.Row([ft.Text("Preço de Venda:", color=COR_TEXTO), ft.Text(f"R$ {bruto:.2f}", weight="bold")], alignment="spaceBetween"),
-            ft.Row([ft.Text("Taxas/Descontos:", color=COR_TEXTO), ft.Text(f"- R$ {descontos:.2f}", color="#DC2626")], alignment="spaceBetween"),
-            ft.Row([ft.Text("Matéria Prima:", color=COR_TEXTO), ft.Text(f"- R$ {custo_mp:.2f}", color="#DC2626")], alignment="spaceBetween"),
-            ft.Row([ft.Text("Mão de Obra:", color=COR_TEXTO), ft.Text(f"- R$ {custo_mo:.2f}", color="#DC2626")], alignment="spaceBetween"),
-            ft.Row([ft.Text("Custo Fixo (Un.):", color=COR_TEXTO), ft.Text(f"- R$ {custo_fixo_unitario:.2f}", color="#DC2626")], alignment="spaceBetween"),
-            ft.Divider(color=COR_BORDA),
-            ft.Row([ft.Text("CUSTO TOTAL:", weight="bold", color=COR_PRETA), ft.Text(f"R$ {custo_total:.2f}", weight="bold", color=COR_PRETA)], alignment="spaceBetween"),
-            ft.Container(height=10),
-            ft.Row([ft.Text("LUCRO LÍQUIDO", size=18, weight="bold", color=cor_lucro), ft.Text(f"R$ {lucro_unitario:.2f}", size=18, weight="bold", color=cor_lucro)], alignment="spaceBetween"),
-            ft.Row([ft.Text("MARGEM", size=14, color=cor_lucro), ft.Text(f"{margem_real:.1f}%", size=14, weight="bold", color=cor_lucro)], alignment="spaceBetween"),
-        ])
-        
-        # Protege o update caso o componente ainda não tenha sido adicionado à página
-        try:
-            card_resultado.update()
-        except Exception:
-            pass
-
     def exportar_pdf(e):
         try:
             from fpdf import FPDF
@@ -416,120 +403,103 @@ def main(page: ft.Page):
         except Exception:
             pass
 
-    btn_calcular = ft.Container(
-        content=ft.Row([ft.Text("GERAR RELATÓRIO FINANCEIRO", color="white", weight="bold", size=15)], alignment="center"),
-        padding=18, bgcolor=COR_PRETA, border_radius=30, on_click=calcular_tudo
-    )
-
     btn_pdf = ft.Container(
         content=ft.Row([ft.Text("EXPORTAR EM PDF", color="white", weight="bold")], alignment="center"),
         padding=15, bgcolor="#DC2626", border_radius=30, on_click=exportar_pdf
     )
 
-    # ==========================================
-    # MONTAGEM DO LAYOUT ADAPTATIVO
-    # ==========================================
     carregar_padrao()
     calcular_tudo(None)
 
-    if is_desktop:
-        conteudos_desktop = [
-            ft.Container(bloco_plataforma, padding=20),
-            ft.Container(bloco_materia_prima, padding=20),
-            ft.Container(bloco_mo_fixos, padding=20)
-        ]
+    # ==========================================
+    # LAYOUT RESPONSIVO INTELIGENTE (LARGURA DA TELA)
+    # ==========================================
+    ultimo_modo = None
+
+    def construir_ui(e=None):
+        nonlocal ultimo_modo
+        largura = page.width if page.width and page.width > 0 else 1200
+        novo_modo = "desktop" if largura >= 850 else "celular"
         
-        nomes_abas_desk = ["Venda", "Materiais", "Custos"]
-        botoes_desk = []
-        area_desk = ft.Container(content=conteudos_desktop[0], expand=True)
+        if novo_modo == ultimo_modo and len(page.controls) > 0:
+            return
+            
+        ultimo_modo = novo_modo
+        page.clean()
 
-        def mudar_aba_desk(idx):
-            for i, b in enumerate(botoes_desk):
-                b.bgcolor = COR_PRETA if i == idx else "transparent"
-                b.content.color = "white" if i == idx else COR_TEXTO
-            area_desk.content = conteudos_desktop[idx]
-            page.update()
+        if novo_modo == "desktop":
+            # --- LAYOUT COMPUTADOR / WINDOWS (LADO A LADO) ---
+            coluna_esquerda = ft.Column([
+                ft.Text("1. Dados da Venda e Plataforma", size=16, weight="bold", color=COR_PRETA),
+                bloco_plataforma,
+                ft.Divider(color=COR_BORDA, height=30),
+                ft.Text("2. Itens do Produto (Matéria Prima)", size=16, weight="bold", color=COR_PRETA),
+                bloco_materia_prima,
+                ft.Divider(color=COR_BORDA, height=30),
+                ft.Text("3. Mão de Obra e Custos Fixos", size=16, weight="bold", color=COR_PRETA),
+                bloco_mo_fixos,
+                ft.Container(height=30)
+            ], expand=6, scroll="auto", spacing=15, padding=25)
 
-        def criar_btn_desk(nome, idx):
-            bg = COR_PRETA if idx == 0 else "transparent"
-            tc = "white" if idx == 0 else COR_TEXTO
-            btn = ft.Container(
-                content=ft.Text(nome, color=tc, weight="bold", size=13),
-                padding=10, bgcolor=bg, border_radius=20,
-                on_click=lambda e: mudar_aba_desk(idx)
+            coluna_direita = ft.Column([
+                ft.Text("Painel de Resultados (Ao Vivo)", size=18, weight="bold", color=COR_PRETA),
+                card_resultado,
+                ft.Container(height=10),
+                btn_pdf
+            ], expand=4, scroll="auto", spacing=15, padding=25)
+
+            corpo_principal = ft.Row([
+                coluna_esquerda,
+                ft.VerticalDivider(width=1, color=COR_BORDA),
+                coluna_direita
+            ], expand=True, spacing=0)
+
+            page.add(header, ft.Divider(height=1, color=COR_BORDA), corpo_principal)
+
+        else:
+            # --- LAYOUT CELULAR / TELA ESTREITA (ABAS) ---
+            aba_plataforma_cel = ft.Column([ft.Text("Dados da Venda", size=16, weight="bold", color=COR_PRETA), bloco_plataforma], scroll="auto", spacing=15)
+            aba_materia_prima_cel = ft.Column([ft.Text("Matéria Prima", size=16, weight="bold", color=COR_PRETA), bloco_materia_prima], scroll="auto", spacing=15)
+            aba_mo_fixos_cel = ft.Column([ft.Text("Mão de Obra e Custos", size=16, weight="bold", color=COR_PRETA), bloco_mo_fixos], scroll="auto", spacing=15)
+            aba_resultados_cel = ft.Column([btn_pdf, ft.Container(height=10), card_resultado], scroll="auto")
+
+            conteudos_cel = [aba_plataforma_cel, aba_materia_prima_cel, aba_mo_fixos_cel, aba_resultados_cel]
+            nomes_abas_cel = ["Venda", "Materiais", "Custos", "Relatório"]
+            botoes_cel = []
+            area_conteudo_cel = ft.Container(content=aba_plataforma_cel, expand=True, padding=20)
+
+            def mudar_aba_cel(index_alvo):
+                calcular_tudo(None)
+                for i, btn in enumerate(botoes_cel):
+                    if i == index_alvo:
+                        btn.bgcolor, btn.content.color = COR_PRETA, "white"
+                    else:
+                        btn.bgcolor, btn.content.color = "transparent", COR_TEXTO
+                area_conteudo_cel.content = conteudos_cel[index_alvo]
+                page.update()
+
+            def criar_botao_aba_cel(nome, index):
+                bg = COR_PRETA if index == 0 else "transparent"
+                texto_cor = "white" if index == 0 else COR_TEXTO
+                btn = ft.Container(
+                    content=ft.Text(nome, color=texto_cor, weight="bold", size=13),
+                    padding=10, bgcolor=bg, border_radius=20,
+                    on_click=lambda e: mudar_aba_cel(index)
+                )
+                botoes_cel.append(btn)
+                return btn
+
+            menu_navegacao_cel = ft.Container(
+                content=ft.Row([criar_botao_aba_cel(nome, i) for i, nome in enumerate(nomes_abas_cel)], alignment="spaceBetween"),
+                padding=15, bgcolor="white"
             )
-            botoes_desk.append(btn)
-            return btn
 
-        menu_desk = ft.Row([criar_btn_desk(n, i) for i, n in enumerate(nomes_abas_desk)], spacing=10)
+            page.add(header, menu_navegacao_cel, ft.Divider(height=1, color=COR_BORDA), area_conteudo_cel)
 
-        coluna_esquerda = ft.Column([
-            menu_desk,
-            ft.Divider(color=COR_BORDA),
-            ft.Container(content=area_desk, expand=True, padding=10)
-        ], expand=6, scroll="auto")
+        page.update()
 
-        coluna_direita = ft.Column([
-            ft.Text("Painel de Resultados", size=18, weight="bold", color=COR_PRETA),
-            card_resultado,
-            ft.Container(height=10),
-            btn_calcular,
-            btn_pdf
-        ], expand=4, scroll="auto", spacing=15, alignment="start")
-
-        corpo_principal = ft.Row([
-            coluna_esquerda,
-            ft.VerticalDivider(width=1, color=COR_BORDA),
-            coluna_direita
-        ], expand=True, spacing=20, alignment="spaceBetween")
-
-        page.add(header, ft.Container(content=corpo_principal, expand=True, padding=20))
-
-    else:
-        aba_plataforma_cel = ft.Column([bloco_plataforma, ft.Container(height=10)], scroll="auto", spacing=15)
-        aba_materia_prima_cel = ft.Column([bloco_materia_prima, ft.Container(height=10)], scroll="auto", spacing=15)
-        aba_mo_fixos_cel = ft.Column([bloco_mo_fixos, ft.Container(height=10)], scroll="auto", spacing=15)
-        
-        aba_resultados_cel = ft.Column([
-            btn_calcular, 
-            ft.Container(height=5), 
-            btn_pdf, 
-            ft.Container(height=10), 
-            card_resultado
-        ], scroll="auto")
-
-        conteudos_cel = [aba_plataforma_cel, aba_materia_prima_cel, aba_mo_fixos_cel, aba_resultados_cel]
-        nomes_abas_cel = ["Venda", "Materiais", "Custos", "Relatório"]
-        botoes_cel = []
-        area_conteudo_cel = ft.Container(content=aba_plataforma_cel, expand=True, padding=20)
-
-        def mudar_aba_cel(index_alvo):
-            calcular_tudo(None)
-            for i, btn in enumerate(botoes_cel):
-                if i == index_alvo:
-                    btn.bgcolor, btn.content.color = COR_PRETA, "white"
-                else:
-                    btn.bgcolor, btn.content.color = "transparent", COR_TEXTO
-            area_conteudo_cel.content = conteudos_cel[index_alvo]
-            page.update()
-
-        def criar_botao_aba_cel(nome, index):
-            bg = COR_PRETA if index == 0 else "transparent"
-            texto_cor = "white" if index == 0 else COR_TEXTO
-            btn = ft.Container(
-                content=ft.Text(nome, color=texto_cor, weight="bold", size=13),
-                padding=10, bgcolor=bg, border_radius=20,
-                on_click=lambda e: mudar_aba_cel(index)
-            )
-            botoes_cel.append(btn)
-            return btn
-
-        menu_navegacao_cel = ft.Container(
-            content=ft.Row([criar_botao_aba_cel(nome, i) for i, nome in enumerate(nomes_abas_cel)], alignment="spaceBetween"),
-            padding=15, bgcolor="white"
-        )
-
-        page.add(header, menu_navegacao_cel, ft.Divider(height=1, color=COR_BORDA), area_conteudo_cel)
+    page.on_resize = construir_ui
+    construir_ui()
 
 porta = int(os.environ.get("PORT", 8080))
 ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=porta, host="0.0.0.0", assets_dir="assets")
