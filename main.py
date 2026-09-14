@@ -16,11 +16,10 @@ def main(page: ft.Page):
     COR_BORDA = "#D4C4B7"
     COR_TEXTO = "#44403C"
     
-    # Variável global temporária para salvar o PDF no desktop
     pdf_bytes_pendente = None
     nome_arquivo_pendente = "Relatorio.pdf"
 
-    # --- CONFIGURAÇÃO DO FILE PICKER (NATIVO DO WINDOWS) ---
+    # --- CONFIGURAÇÃO CORRETA DO FILE PICKER (DESKTOP) ---
     def on_file_picker_result(e: ft.FilePickerResultEvent):
         nonlocal pdf_bytes_pendente
         if e.path and pdf_bytes_pendente:
@@ -30,7 +29,8 @@ def main(page: ft.Page):
             except Exception:
                 pass
 
-    file_picker = ft.FilePicker(on_result=on_file_picker_result)
+    file_picker = ft.FilePicker()
+    file_picker.on_result = on_file_picker_result
     page.overlay.append(file_picker)
 
     # --- FUNÇÕES DE INTERFACE SEGURAS ---
@@ -360,7 +360,7 @@ def main(page: ft.Page):
         adicionar_item_fixo("", "")
 
     # ==========================================
-    # EXPORTAÇÃO PDF ADAPTADA
+    # EXPORTAÇÃO PDF BLOB (ROBUSTA PARA WEB E DESKTOP)
     # ==========================================
     def exportar_pdf(e):
         nonlocal pdf_bytes_pendente, nome_arquivo_pendente
@@ -422,9 +422,26 @@ def main(page: ft.Page):
             pdf_bytes_pendente = pdf_bytes
             file_picker.save_file(file_name=nome_arquivo_pendente, allowed_extensions=["pdf"])
         else:
-            b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-            data_uri = f"data:application/pdf;base64,{b64_pdf}"
-            page.launch_url(data_uri)
+            # Blob download via JS: evita bloqueios de navegadores de desktop/mobile em data URIs
+            b64_data = base64.b64encode(pdf_bytes).decode('utf-8')
+            js_code = f"""
+            const byteCharacters = atob("{b64_data}");
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {{
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }}
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], {{ type: 'application/pdf' }});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "{nome_arquivo_pendente}";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            """
+            page.run_javascript(js_code)
 
     btn_pdf = ft.Container(
         content=ft.Row([ft.Text("EXPORTAR EM PDF", color="white", weight="bold")], alignment="center"),
