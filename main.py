@@ -387,6 +387,7 @@ def main(page: ft.Page):
         pdf.cell(100, 10, txt="CUSTO TOTAL:", border=0)
         pdf.cell(90, 10, txt=f"R$ {custo_total:.2f}", border=0, ln=True, align='R')
         pdf.ln(5)
+        pdf.set_font("Arial", 'L', 12) # ajustado para B caso prefira negrito
         pdf.cell(100, 10, txt="LUCRO LIQUIDO:", border=0)
         pdf.cell(90, 10, txt=f"R$ {lucro_unitario:.2f}", border=0, ln=True, align='R')
 
@@ -412,7 +413,7 @@ def main(page: ft.Page):
     calcular_tudo(None)
 
     # ==========================================
-    # LAYOUT RESPONSIVO INTELIGENTE
+    # LAYOUT RESPONSIVO INTELIGENTE (COM SCROLL)
     # ==========================================
     ultimo_modo = None
 
@@ -428,6 +429,7 @@ def main(page: ft.Page):
         page.clean()
 
         if novo_modo == "desktop":
+            # Coluna esquerda com scroll independente
             coluna_esquerda = ft.Column([
                 ft.Text("1. Dados da Venda e Plataforma", size=16, weight="bold", color=COR_PRETA),
                 bloco_plataforma,
@@ -438,16 +440,17 @@ def main(page: ft.Page):
                 ft.Text("3. Mão de Obra e Custos Fixos", size=16, weight="bold", color=COR_PRETA),
                 bloco_mo_fixos,
                 ft.Container(height=30)
-            ], spacing=15)
+            ], scroll="auto", spacing=15, expand=True)
 
             container_esquerda = ft.Container(content=coluna_esquerda, expand=6, padding=25)
 
+            # Coluna direita com scroll independente
             coluna_direita = ft.Column([
                 ft.Text("Painel de Resultados (Ao Vivo)", size=18, weight="bold", color=COR_PRETA),
                 card_resultado,
                 ft.Container(height=10),
                 btn_pdf
-            ], spacing=15)
+            ], scroll="auto", spacing=15, expand=True)
 
             container_direita = ft.Container(content=coluna_direita, expand=4, padding=25)
 
